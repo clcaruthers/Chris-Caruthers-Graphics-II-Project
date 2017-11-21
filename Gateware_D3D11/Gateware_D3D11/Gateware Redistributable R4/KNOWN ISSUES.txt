@@ -1,0 +1,15 @@
+The known issues:
+
+1. In Linux version, there is no 32-bit. It is in proccess.
+
+2. In Linux, GWindow fullscreen is not covering the whole screen. On certain distros.
+
+3. On Mac, OpenGLSurface windows do not have a title bar.
+
+4. On Mac, you must minimize then maximize after resizing a window. (This may already be fixed...)
+
+5. On Windows, The GDirectX11Surface cannot be attatched to a closed window.
+
+6. On Windows, The GDirectX11Surface must not be accessed after a DESTROY window event is processed.
+
+7. On Windows, The GDirectX11Surface leaks memory if you resize the screen or request Z Buffer support.
