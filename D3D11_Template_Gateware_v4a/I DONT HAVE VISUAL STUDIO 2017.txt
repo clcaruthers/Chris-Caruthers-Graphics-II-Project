@@ -1,0 +1,9 @@
+Then you should probably upgrade...
+
+Seriously though... just make an empty console App and drop in the two source files along with the Gateware folder.
+It should work just fine. (Be sure the directory structure is the same)
+
+If the libraries give you trouble just switch to the DLLs or just compile the source directly.
+You can even pull the GxxxCreate() (non-mangled) functions straight out of an DLL explicitly if you are feeling feisty.
+
+On Windows you can use "LoadLibrary" followed by "GetProcAddress", this method will be different on other platforms.  
