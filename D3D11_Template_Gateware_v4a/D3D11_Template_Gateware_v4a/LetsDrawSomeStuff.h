@@ -55,6 +55,10 @@ class LetsDrawSomeStuff
 	float zFar = 10.0f;
 	float zNear = 0.1f;
 
+	ID3D11Texture2D * floorTex;
+	ID3D11ShaderResourceView * floorSRV;
+	ID3D11SamplerState * texSampler;
+
 	struct SEND_TO_VRAM {
 		XMFLOAT4X4 worldMat;
 		XMFLOAT4X4 viewMat;
@@ -216,6 +220,8 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			verts[5].RGBA.z = 1;
 			verts[5].RGBA.w = 1;
 #pragma endregion
+
+			CreateDDSTextureFromFile(myDevice, L"MetalFLoor.dds", (ID3D11Resource**)&floorTex, &floorSRV);
 			// TODO: PART 2 STEP 3b
 			D3D11_BUFFER_DESC bDesc;
 			bDesc.Usage = D3D11_USAGE_IMMUTABLE;
@@ -266,6 +272,17 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			bDesc2.StructureByteStride = 0;
 			bDesc2.ByteWidth = sizeof(SEND_TO_VRAM);
 
+			D3D11_SAMPLER_DESC tsDesc;
+			ZeroMemory(&tsDesc, sizeof(tsDesc));
+			tsDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+			tsDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+			tsDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+			tsDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+			tsDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+			tsDesc.MinLOD = 0;
+			tsDesc.MaxLOD = D3D11_FLOAT32_MAX;
+			myDevice->CreateSamplerState(&tsDesc, &texSampler);
+
 			myDevice->CreateBuffer(&bDesc2, NULL, &vertBuffer2);
 
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
@@ -288,6 +305,10 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	pShader->Release();
 	vShader->Release();
 	IL->Release();
+
+	floorTex->Release();
+	texSampler->Release();
+	floorSRV->Release();
 
 	if (mySurface) // Free Gateware Interface
 	{
@@ -382,6 +403,9 @@ void LetsDrawSomeStuff::Render()
 			toShader.viewMat = VIEWMATRIX;
 			toShader.projMat = PROJECTIONMATRIX;
 
+			//set texture SRVs
+			ID3D11ShaderResourceView * SRVs[] = { floorSRV };
+
 			//myContext->RSSetViewports(1, &viewport);
 
 			D3D11_MAPPED_SUBRESOURCE mapResource;
@@ -400,6 +424,8 @@ void LetsDrawSomeStuff::Render()
 			// TODO: PART 2 STEP 9b
 			myContext->VSSetShader(vShader, NULL, 0);
 			myContext->PSSetShader(pShader, NULL, 0);
+			myContext->PSSetShaderResources(0, 1, SRVs);
+			myContext->PSSetSamplers(0, 1, &texSampler);
 
 			// TODO: PART 2 STEP 9c
 			myContext->IASetInputLayout(IL);
