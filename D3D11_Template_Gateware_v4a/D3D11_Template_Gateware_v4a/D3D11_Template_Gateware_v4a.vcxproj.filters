@@ -18,10 +18,20 @@
     <ClInclude Include="LetsDrawSomeStuff.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="XTime.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="XTime.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Trivial_PS.hlsl" />
+    <FxCompile Include="Trivial_VS.hlsl" />
   </ItemGroup>
 </Project>
