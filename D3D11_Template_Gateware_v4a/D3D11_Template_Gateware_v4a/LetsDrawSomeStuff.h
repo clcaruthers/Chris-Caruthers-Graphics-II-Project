@@ -102,12 +102,12 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			attatchPoint->GetWindowHandle(sizeof(HWND), &wWindow);
 
 			// TODO: Create new DirectX stuff here! (Buffers, Shaders, Layouts, Views, Textures, etc...)
-			viewport.MinDepth = 0;
+			/*viewport.MinDepth = 0;
 			viewport.MaxDepth = 1;
 			viewport.TopLeftX = 0;
 			viewport.TopLeftY = 0;
 			viewport.Height = (FLOAT)wHeight;
-			viewport.Width = (FLOAT)wWidth;
+			viewport.Width = (FLOAT)wWidth;*/
 
 			// TODO: PART 2 STEP 3a
 			vertCount = 6;
@@ -269,7 +269,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
 
-			aspectRatio = viewport.Width / viewport.Height;
+			mySurface->GetAspectRatio(aspectRatio);
 			XMStoreFloat4x4(&PROJECTIONMATRIX, XMMatrixPerspectiveFovLH(XMConvertToRadians(FOV), aspectRatio, zNear, zFar));
 		}
 	}
@@ -380,7 +380,7 @@ void LetsDrawSomeStuff::Render()
 			toShader.viewMat = VIEWMATRIX;
 			toShader.projMat = PROJECTIONMATRIX;
 
-			myContext->RSSetViewports(1, &viewport);
+			//myContext->RSSetViewports(1, &viewport);
 
 			D3D11_MAPPED_SUBRESOURCE mapResource;
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
