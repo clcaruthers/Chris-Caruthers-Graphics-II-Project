@@ -38,18 +38,17 @@ class LetsDrawSomeStuff
 	ID3D11Buffer * vertBuffer2;
 	XTime timeObject;
 
+	XMFLOAT4X4 WORLDMATRIX;
+	XMFLOAT4X4 VIEWMATRIX;
+	XMFLOAT4X4 PROJECTIONMATRIX;
 
 	struct SEND_TO_VRAM {
-		XMFLOAT4 conColor;
-		XMFLOAT2 conOffset;
-		XMFLOAT2 pad;
+		XMFLOAT4X4 worldMat;
+		XMFLOAT4X4 viewMat;
+		XMFLOAT4X4 projMat;
 	};
 
 	SEND_TO_VRAM toShader;
-
-	SEND_TO_VRAM toShaderGrid;
-
-	XMFLOAT2 velocity;
 
 public:
 
@@ -234,16 +233,16 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			D3D11_INPUT_ELEMENT_DESC IED[] = {
 				{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0,
 				D3D11_INPUT_PER_VERTEX_DATA, 0 },
-				{"TEXCOORD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT , 0, 0,
+				{"TEXCOORD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT , 0, 16,
 				D3D11_INPUT_PER_VERTEX_DATA, 0},
-				{"NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT , 0, 0,
+				{"NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT , 0, 32,
 				D3D11_INPUT_PER_VERTEX_DATA, 0},
-				{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0,
+				{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 48,
 				D3D11_INPUT_PER_VERTEX_DATA, 0}
 			};
 
 			// TODO: PART 2 STEP 8b
-			myDevice->CreateInputLayout(IED, 1, Trivial_VS, sizeof(Trivial_VS), &IL);
+			myDevice->CreateInputLayout(IED, 4, Trivial_VS, sizeof(Trivial_VS), &IL);
 
 			// TODO: PART 3 STEP 3
 			D3D11_BUFFER_DESC bDesc2;
@@ -255,6 +254,9 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			bDesc2.ByteWidth = sizeof(SEND_TO_VRAM);
 
 			myDevice->CreateBuffer(&bDesc2, NULL, &vertBuffer2);
+
+			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
+
 		}
 	}
 }

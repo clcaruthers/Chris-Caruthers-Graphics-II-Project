@@ -1,35 +1,38 @@
 struct INPUT_VERTEX
 {
-	float2 coordinate : POSITION;
+	float4 coordinate : POSITION;
+	float4 UV : TEXCOORD;
+	float4 norm : NORMAL;
+	float4 color : COLOR;
 };
 
 struct OUTPUT_VERTEX
 {
-	float4 colorOut : COLOR;
 	float4 projectedCoordinate : SV_POSITION;
+	float4 UVout : TEXCOORD;
+	float4 normOut : NORMAL;
+	float4 colorOut : COLOR;
 };
 
 // TODO: PART 3 STEP 2a
 cbuffer THIS_IS_VRAM : register( b0 )
 {
-	float4 constantColor;
-	float2 constantOffset;
-	float2 padding;
+	float4x4 worldMat;
+	float4x4 viewMat;
+	float4x4 projMat;
 };
 
 OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 {
 	OUTPUT_VERTEX sendToRasterizer = (OUTPUT_VERTEX)0;
-	sendToRasterizer.projectedCoordinate.w = 1;
-	
-	sendToRasterizer.projectedCoordinate.xy = fromVertexBuffer.coordinate.xy;
+	sendToRasterizer.projectedCoordinate = fromVertexBuffer.coordinate;
+	sendToRasterizer.UVout = fromVertexBuffer.UV;
+	sendToRasterizer.normOut = fromVertexBuffer.norm;
+	sendToRasterizer.colorOut = fromVertexBuffer.color;
 		
-	// TODO : PART 4 STEP 4
-	sendToRasterizer.projectedCoordinate.xy += constantOffset;
-	
-	// TODO : PART 3 STEP 7
-	sendToRasterizer.colorOut = constantColor;
-	// END PART 3
+	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, worldMat);
+	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, viewMat);
+	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, projMat);
 
 	return sendToRasterizer;
 }
