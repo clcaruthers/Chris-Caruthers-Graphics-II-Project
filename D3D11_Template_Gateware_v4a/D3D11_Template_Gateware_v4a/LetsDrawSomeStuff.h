@@ -269,8 +269,6 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
 
-			mySurface->GetAspectRatio(aspectRatio);
-			XMStoreFloat4x4(&PROJECTIONMATRIX, XMMatrixPerspectiveFovLH(XMConvertToRadians(FOV), aspectRatio, zNear, zFar));
 		}
 	}
 }
@@ -313,6 +311,9 @@ void LetsDrawSomeStuff::Render()
 				myContext->ClearDepthStencilView(myDepthStencilView, D3D11_CLEAR_DEPTH, 1, 0); // clear it to Z exponential Far.
 				myDepthStencilView->Release();
 			}
+
+			mySurface->GetAspectRatio(aspectRatio);
+			XMStoreFloat4x4(&PROJECTIONMATRIX, XMMatrixPerspectiveFovLH(XMConvertToRadians(FOV), aspectRatio, zNear, zFar));
 
 			timeObject.Signal();
 			double timestep = timeObject.Delta();
