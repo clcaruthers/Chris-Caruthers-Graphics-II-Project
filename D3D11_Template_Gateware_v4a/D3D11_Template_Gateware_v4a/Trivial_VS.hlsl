@@ -1,3 +1,5 @@
+#pragma pack_matrix(row_major)
+
 struct INPUT_VERTEX
 {
 	float4 coordinate : POSITION;
@@ -8,10 +10,10 @@ struct INPUT_VERTEX
 
 struct OUTPUT_VERTEX
 {
+	float4 colorOut : COLOR;
 	float4 projectedCoordinate : SV_POSITION;
 	float4 UVout : TEXCOORD;
 	float4 normOut : NORMAL;
-	float4 colorOut : COLOR;
 };
 
 // TODO: PART 3 STEP 2a

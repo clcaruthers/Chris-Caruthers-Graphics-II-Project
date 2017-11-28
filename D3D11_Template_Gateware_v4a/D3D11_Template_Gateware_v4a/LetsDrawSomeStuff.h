@@ -42,6 +42,18 @@ class LetsDrawSomeStuff
 	XMFLOAT4X4 VIEWMATRIX;
 	XMFLOAT4X4 PROJECTIONMATRIX;
 
+	float xRot = 0;
+	float yRot = 0;
+	float xShift = 0;
+	float yShift = 0;
+	float zShift = 0;
+
+	float FOV = 90;
+	float aspectRatio;
+
+	float zFar = 10.0f;
+	float zNear = 0.1f;
+
 	struct SEND_TO_VRAM {
 		XMFLOAT4X4 worldMat;
 		XMFLOAT4X4 viewMat;
@@ -257,6 +269,8 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
 
+			aspectRatio = viewport.Width / viewport.Height;
+			XMStoreFloat4x4(&PROJECTIONMATRIX, XMMatrixPerspectiveFovLH(XMConvertToRadians(FOV), aspectRatio, zNear, zFar));
 		}
 	}
 }
@@ -300,6 +314,57 @@ void LetsDrawSomeStuff::Render()
 				myDepthStencilView->Release();
 			}
 
+			timeObject.Signal();
+			double timestep = timeObject.Delta();
+
+			if (GetAsyncKeyState(VK_DOWN)) {
+				xRot += 50 * timestep;
+			}
+			else if (GetAsyncKeyState(VK_UP)) {
+				xRot -= 50 * timestep;
+			}
+
+			if (GetAsyncKeyState(VK_RIGHT)) {
+				yRot += 50 * timestep;
+			}
+			else if (GetAsyncKeyState(VK_LEFT)) {
+				yRot -= 50 * timestep;
+			}
+
+			if (GetAsyncKeyState(VK_SPACE))
+				yShift += 0.5f * timestep;
+			if (GetAsyncKeyState(VK_LCONTROL))
+				yShift -= 0.5f * timestep;
+			if (GetAsyncKeyState('W'))
+				zShift += 0.5f * timestep;
+			if (GetAsyncKeyState('S'))
+				zShift -= 0.5f * timestep;
+			if (GetAsyncKeyState('A'))
+				xShift -= 0.5f * timestep;
+			if (GetAsyncKeyState('D'))
+				xShift += 0.5f * timestep;
+
+			if (yRot >= 360)
+				yRot -= 360;
+
+			if (yRot < 0)
+				yRot += 360;
+
+			if (xRot >= 360)
+				xRot -= 360;
+
+			if (xRot < 0)
+				xRot += 360;
+			
+			XMMATRIX xr = XMMatrixRotationX(XMConvertToRadians(xRot));
+			XMMATRIX yr = XMMatrixRotationY(XMConvertToRadians(yRot));
+			XMMATRIX rot = xr * yr;
+
+			XMMATRIX translate = XMMatrixTranslation(xShift, yShift, zShift);
+
+			XMMATRIX tempView = translate * rot;
+			tempView = XMMatrixInverse(nullptr, tempView);
+			XMStoreFloat4x4(&VIEWMATRIX, tempView);
 			// Set active target for drawing, all array based D3D11 functions should use a syntax similar to below
 			
 			ID3D11RenderTargetView* const targets[] = { myRenderTargetView };
@@ -310,8 +375,10 @@ void LetsDrawSomeStuff::Render()
 			myContext->ClearRenderTargetView(myRenderTargetView, d_green);
 			
 			// TODO: Set your shaders, Update & Set your constant buffers, Attatch your vertex & index buffers, Set your InputLayout & Topology & Draw!
-			timeObject.Signal();
-			double timestep = timeObject.Delta();
+
+			toShader.worldMat = WORLDMATRIX;
+			toShader.viewMat = VIEWMATRIX;
+			toShader.projMat = PROJECTIONMATRIX;
 
 			myContext->RSSetViewports(1, &viewport);
 
@@ -336,9 +403,9 @@ void LetsDrawSomeStuff::Render()
 			myContext->IASetInputLayout(IL);
 
 			// TODO: PART 2 STEP 9d
-			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			// TODO: PART 2 STEP 10
-			myContext->Draw(361, 0);
+			myContext->Draw(6, 0);
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
