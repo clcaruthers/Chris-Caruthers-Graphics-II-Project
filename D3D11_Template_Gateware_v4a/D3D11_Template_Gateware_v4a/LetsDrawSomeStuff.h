@@ -9,6 +9,7 @@
 #include <d3d11.h>
 #include <DirectXMath.h>
 #include "XTime.h"
+#include "DDSTextureLoader.h"
 
 #include "Trivial_PS.csh"
 #include "Trivial_VS.csh"
