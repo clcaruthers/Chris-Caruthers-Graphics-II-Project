@@ -117,7 +117,7 @@
   <ItemGroup>
     <ClInclude Include="DDSTextureLoader.h" />
     <ClInclude Include="LetsDrawSomeStuff.h" />
-    <ClInclude Include="TentacleKnight.h" />
+    <ClInclude Include="Wolf.h" />
     <ClInclude Include="XTime.h" />
   </ItemGroup>
   <ItemGroup>

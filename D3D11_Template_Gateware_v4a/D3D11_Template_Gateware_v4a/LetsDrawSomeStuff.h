@@ -11,6 +11,7 @@
 #include "XTime.h"
 #include "DDSTextureLoader.h"
 #include "TentacleKnight.h"
+#include "Wolf.h"
 
 #include "Trivial_PS.csh"
 #include "Trivial_VS.csh"
@@ -35,8 +36,13 @@ class LetsDrawSomeStuff
 	ID3D11InputLayout * IL;
 	ID3D11Buffer * vertBuffer2;
 
-	ID3D11Buffer * TKvertBuffer;
-	unsigned int TKvertCount;
+	/*ID3D11Buffer * TKvertBuffer;
+	ID3D11Buffer * TKIndexBuffer;
+	unsigned int TKvertCount;*/
+
+	ID3D11Buffer * WolfVertBuffer;
+	ID3D11Buffer * WolfIndexBuffer;
+	unsigned int WolfVertCount;
 
 
 	ID3D11VertexShader * vShader;
@@ -48,7 +54,8 @@ class LetsDrawSomeStuff
 	XMFLOAT4X4 PROJECTIONMATRIX;
 	
 	XMFLOAT4X4 WORLDMATRIX;
-	XMFLOAT4X4 TKWORLD;
+	/*XMFLOAT4X4 TKWORLD;*/
+	XMFLOAT4X4 WOLFWORLD;
 
 	float xRot = 0;
 	float yRot = 0;
@@ -66,8 +73,11 @@ class LetsDrawSomeStuff
 	ID3D11ShaderResourceView * floorSRV;
 	ID3D11SamplerState * texSampler;
 
-	ID3D11Texture2D * TKTex;
-	ID3D11ShaderResourceView * TKSRV;
+	//ID3D11Texture2D * TKTex;
+	//ID3D11ShaderResourceView * TKSRV;
+	
+	ID3D11Texture2D * wolfTex;
+	ID3D11ShaderResourceView * wolfSRV;
 
 	struct SEND_TO_VRAM {
 		XMFLOAT4X4 worldMat;
@@ -232,31 +242,57 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			verts[5].RGBA.w = 1;
 #pragma endregion
 
-			TKvertCount = 20163;
-			MYVERTEX* TKverts = new MYVERTEX[20163];
+//			TKvertCount = 20163;
+//			MYVERTEX* TKverts = new MYVERTEX[20163];
+//			unsigned int TKIcount = 20163;
+//			unsigned int TKIndicies[20163];
+//
+//#pragma region
+//			for (int i = 0; i < 19259; ++i) {
+//				TKverts[i].XYZW.x = TentacleKnight_data[i].pos[0];
+//				TKverts[i].XYZW.y = TentacleKnight_data[i].pos[1];
+//				TKverts[i].XYZW.z = TentacleKnight_data[i].pos[2];
+//				TKverts[i].XYZW.w = 1;
+//				TKverts[i].UV.x = TentacleKnight_data[i].uvw[0];
+//				TKverts[i].UV.y = TentacleKnight_data[i].uvw[1];
+//				TKverts[i].UV.z = TentacleKnight_data[i].uvw[2];
+//				TKverts[i].UV.w = 0;
+//				TKverts[i].NORM.x = TentacleKnight_data[i].nrm[0];
+//				TKverts[i].NORM.y = TentacleKnight_data[i].nrm[1];
+//				TKverts[i].NORM.z = TentacleKnight_data[i].nrm[2];
+//				TKverts[i].NORM.w = 0;
+//				TKverts[i].RGBA.x = 1.0f;
+//				TKverts[i].RGBA.y = 1.0f;
+//				TKverts[i].RGBA.z = 1.0f;
+//				TKverts[i].RGBA.w = 1.0f;
+//			}
+//
+//			for (int i = 0; i < 20163; i++) {
+//				TKIndicies[i] = TentacleKnight_indicies[i];
+//			}
+//#pragma endregion
+
+			WolfVertCount = 1981;
+			MYVERTEX* wolfVerts = new MYVERTEX[1981];
+			unsigned int wolfICount = 6114;
+			unsigned int wolfIndicies[6114];
 
 #pragma region
-			for (int i = 0; i < 20163; ++i) {
-				TKverts[i].XYZW.x = TentacleKnight_data[TentacleKnight_indicies[i]].pos[0];
-				TKverts[i].XYZW.y = TentacleKnight_data[TentacleKnight_indicies[i]].pos[1];
-				TKverts[i].XYZW.z = TentacleKnight_data[TentacleKnight_indicies[i]].pos[2];
-				TKverts[i].XYZW.w = 1;
-				TKverts[i].UV.x = TentacleKnight_data[TentacleKnight_indicies[i]].uvw[0];
-				TKverts[i].UV.y = TentacleKnight_data[TentacleKnight_indicies[i]].uvw[1];
-				TKverts[i].UV.z = 0;
-				TKverts[i].UV.w = 0;
-				TKverts[i].NORM.x = TentacleKnight_data[TentacleKnight_indicies[i]].nrm[0];
-				TKverts[i].NORM.y = TentacleKnight_data[TentacleKnight_indicies[i]].nrm[1];
-				TKverts[i].NORM.z = TentacleKnight_data[TentacleKnight_indicies[i]].nrm[2];
-				TKverts[i].NORM.w = 0;
-				TKverts[i].RGBA.x = 1.0f;
-				TKverts[i].RGBA.y = 1.0f;
-				TKverts[i].RGBA.z = 1.0f;
-				TKverts[i].RGBA.w = 1.0f;
+			for (int i = 0; i < 1981; ++i) {
+				wolfVerts[i].XYZW = { Wolf_data[i].pos[0], Wolf_data[i].pos[1], Wolf_data[i].pos[2], 1 };
+				wolfVerts[i].UV = { Wolf_data[i].uvw[0], Wolf_data[i].uvw[1], Wolf_data[i].uvw[2], 0 };
+				wolfVerts[i].NORM = { Wolf_data[i].nrm[0], Wolf_data[i].nrm[1], Wolf_data[i].nrm[2], 1 };
+				wolfVerts[i].RGBA = { 1.0f, 1.0f, 1.0f, 1.0f };
+			}
+
+			for (int i = 0; i < 6114; ++i) {
+				wolfIndicies[i] = Wolf_indicies[i];
 			}
 #pragma endregion
 
 			CreateDDSTextureFromFile(myDevice, L"MetalFLoor.dds", (ID3D11Resource**)&floorTex, &floorSRV);
+			/*CreateDDSTextureFromFile(myDevice, L"Diffuse_Knight_Cleansed.dds", (ID3D11Resource**)&TKTex, &TKSRV);*/
+			CreateDDSTextureFromFile(myDevice, L"alphaBlackR.dds", (ID3D11Resource**)&wolfTex, &wolfSRV);
 			// TODO: PART 2 STEP 3b
 			D3D11_BUFFER_DESC bDesc;
 			bDesc.Usage = D3D11_USAGE_IMMUTABLE;
@@ -274,7 +310,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			myDevice->CreateBuffer(&bDesc, &initData, &vertBuffer);
 
 			//TENTACLE KNIGHT BUFFER CREATION
-			D3D11_BUFFER_DESC TKvertDesc;
+			/*D3D11_BUFFER_DESC TKvertDesc;
 			TKvertDesc.Usage = D3D11_USAGE_IMMUTABLE;
 			TKvertDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 			TKvertDesc.CPUAccessFlags = NULL;
@@ -287,7 +323,35 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			TKinit.SysMemPitch = 0;
 			TKinit.SysMemSlicePitch = 0;
 
-			myDevice->CreateBuffer(&TKvertDesc, &TKinit, &TKvertBuffer);
+			myDevice->CreateBuffer(&TKvertDesc, &TKinit, &TKvertBuffer);*/
+
+			D3D11_BUFFER_DESC TKIDesc;
+			TKIDesc.Usage = D3D11_USAGE_IMMUTABLE;
+			TKIDesc.BindFlags = D3D10_BIND_INDEX_BUFFER;
+			TKIDesc.CPUAccessFlags = NULL;
+			/*TKIDesc.ByteWidth = sizeof(unsigned int) * TKIcount;*/
+			TKIDesc.MiscFlags = 0;
+			TKIDesc.StructureByteStride = 0;
+
+			/*TKinit.pSysMem = &TKIndicies;
+
+			myDevice->CreateBuffer(&TKIDesc, &TKinit, &TKIndexBuffer);*/
+
+			//wolf buffers
+			bDesc.ByteWidth = sizeof(MYVERTEX) * WolfVertCount;
+			
+			D3D11_SUBRESOURCE_DATA wolfInit;
+			wolfInit.pSysMem = wolfVerts;
+			wolfInit.SysMemPitch = 0;
+			wolfInit.SysMemSlicePitch = 0;
+
+			myDevice->CreateBuffer(&bDesc, &wolfInit, &WolfVertBuffer);
+
+			TKIDesc.ByteWidth = sizeof(unsigned int) * wolfICount;
+
+			wolfInit.pSysMem = &wolfIndicies;
+
+			myDevice->CreateBuffer(&TKIDesc, &wolfInit, &WolfIndexBuffer);
 			
 
 			// TODO: PART 2 STEP 7
@@ -333,10 +397,12 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			//WORLD MATRICES CREATION
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
-			XMStoreFloat4x4(&TKWORLD, XMMatrixTranslation(0, 0.5f, 0) * XMMatrixScaling(0.5f, 0.5f, 0.5f));
+			/*XMStoreFloat4x4(&TKWORLD, XMMatrixTranslation(0, 0.5f, 0) * XMMatrixScaling(0.5f, 0.5f, 0.5f));*/
+			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0.5f, 0));
 
 			//memory cleanup
-			delete[] TKverts;
+			/*delete[] TKverts;*/
+			delete[] wolfVerts;
 		}
 	}
 }
@@ -351,7 +417,10 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 
 	// TODO: "Release()" more stuff here!
 	vertBuffer->Release();
-	TKvertBuffer->Release();
+	/*TKvertBuffer->Release();
+	TKIndexBuffer->Release();*/
+	WolfVertBuffer->Release();
+	WolfIndexBuffer->Release();
 
 	vertBuffer2->Release();
 	pShader->Release();
@@ -361,6 +430,12 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	floorTex->Release();
 	texSampler->Release();
 	floorSRV->Release();
+
+	/*TKTex->Release();
+	TKSRV->Release();*/
+
+	wolfTex->Release();
+	wolfSRV->Release();
 
 
 	if (mySurface) // Free Gateware Interface
@@ -457,7 +532,7 @@ void LetsDrawSomeStuff::Render()
 			toShader.projMat = PROJECTIONMATRIX;
 
 			//set texture SRVs
-			ID3D11ShaderResourceView * SRVs[] = { floorSRV };
+			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV };
 
 			//myContext->RSSetViewports(1, &viewport);
 
@@ -477,7 +552,7 @@ void LetsDrawSomeStuff::Render()
 			// TODO: PART 2 STEP 9b
 			myContext->VSSetShader(vShader, NULL, 0);
 			myContext->PSSetShader(pShader, NULL, 0);
-			myContext->PSSetShaderResources(0, 1, SRVs);
+			myContext->PSSetShaderResources(0, 1, &SRVs[0]);
 			myContext->PSSetSamplers(0, 1, &texSampler);
 
 			// TODO: PART 2 STEP 9c
@@ -488,7 +563,7 @@ void LetsDrawSomeStuff::Render()
 			// TODO: PART 2 STEP 10
 			myContext->Draw(6, 0);
 
-			toShader.worldMat = TKWORLD;
+			/*toShader.worldMat = TKWORLD;
 
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
@@ -496,8 +571,26 @@ void LetsDrawSomeStuff::Render()
 			myContext->Unmap(vertBuffer2, 0);
 
 			myContext->IASetVertexBuffers(0, 1, &TKvertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(TKIndexBuffer, DXGI_FORMAT::DXGI_FORMAT_R32_UINT, 0);
 
-			myContext->Draw(20163, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[1]);
+
+			myContext->DrawIndexed(20163, 0, 0);*/
+
+			//draw wolf
+			toShader.worldMat = WOLFWORLD;
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &WolfVertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(WolfIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+			myContext->PSSetShaderResources(0, 1, &SRVs[1]);
+
+			myContext->DrawIndexed(6114, 0, 0);
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
