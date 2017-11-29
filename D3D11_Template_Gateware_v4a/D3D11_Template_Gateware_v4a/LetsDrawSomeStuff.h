@@ -35,6 +35,7 @@ class LetsDrawSomeStuff
 	unsigned int vertCount;
 	ID3D11InputLayout * IL;
 	ID3D11Buffer * vertBuffer2;
+	ID3D11Buffer * lightConstBuff;
 
 	/*ID3D11Buffer * TKvertBuffer;
 	ID3D11Buffer * TKIndexBuffer;
@@ -79,6 +80,11 @@ class LetsDrawSomeStuff
 	ID3D11Texture2D * wolfTex;
 	ID3D11ShaderResourceView * wolfSRV;
 
+	struct DIRLIGHT_TO_PSHADER {
+		XMFLOAT4 light;
+		XMFLOAT4 color;
+	};
+
 	struct SEND_TO_VRAM {
 		XMFLOAT4X4 worldMat;
 		XMFLOAT4X4 viewMat;
@@ -86,6 +92,7 @@ class LetsDrawSomeStuff
 	};
 
 	SEND_TO_VRAM toShader;
+	DIRLIGHT_TO_PSHADER dirLight;
 
 public:
 
@@ -395,6 +402,10 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			myDevice->CreateBuffer(&bDesc2, NULL, &vertBuffer2);
 
+			bDesc2.ByteWidth = sizeof(DIRLIGHT_TO_PSHADER);
+
+			myDevice->CreateBuffer(&bDesc2, NULL, &lightConstBuff);
+
 			//WORLD MATRICES CREATION
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
 			/*XMStoreFloat4x4(&TKWORLD, XMMatrixTranslation(0, 0.5f, 0) * XMMatrixScaling(0.5f, 0.5f, 0.5f));*/
@@ -433,6 +444,8 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 
 	/*TKTex->Release();
 	TKSRV->Release();*/
+
+	lightConstBuff->Release();
 
 	wolfTex->Release();
 	wolfSRV->Release();
@@ -495,6 +508,16 @@ void LetsDrawSomeStuff::Render()
 			if (GetAsyncKeyState('D'))
 				xShift += 0.5f * timestep;
 
+			if (GetAsyncKeyState('Q'))
+				FOV -= 10 * timestep;
+			if (GetAsyncKeyState('E'))
+				FOV += 10 * timestep;
+
+			if (FOV < 10)
+				FOV = 10;
+			else if (FOV > 179)
+				FOV = 179;
+
 			if (yRot >= 360)
 				yRot -= 360;
 
@@ -531,6 +554,9 @@ void LetsDrawSomeStuff::Render()
 			toShader.viewMat = VIEWMATRIX;
 			toShader.projMat = PROJECTIONMATRIX;
 
+			dirLight.light = { 1.0f, 0, 0, 0 };
+			dirLight.color = { 1.0f, 0.75f, 0.75f, 0.75f };
+
 			//set texture SRVs
 			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV };
 
@@ -544,6 +570,13 @@ void LetsDrawSomeStuff::Render()
 
 			// TODO: PART 3 STEP 6
 			myContext->VSSetConstantBuffers(0, 1, &vertBuffer2);
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(lightConstBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &dirLight, sizeof(dirLight));
+			myContext->Unmap(lightConstBuff, 0);
+
+			myContext->PSSetConstantBuffers(0, 1, &lightConstBuff);
 
 			// TODO: PART 2 STEP 9a
 			UINT stride = sizeof(MYVERTEX);
