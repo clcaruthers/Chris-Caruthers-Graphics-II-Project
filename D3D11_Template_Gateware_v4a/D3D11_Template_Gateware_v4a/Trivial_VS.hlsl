@@ -14,6 +14,7 @@ struct OUTPUT_VERTEX
 	float4 projectedCoordinate : SV_POSITION;
 	float4 UVout : TEXCOORD;
 	float4 normOut : NORMAL;
+	float4 worldPos : WORLDPOS;
 };
 
 // TODO: PART 3 STEP 2a
@@ -33,6 +34,7 @@ OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 	sendToRasterizer.colorOut = fromVertexBuffer.color;
 		
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, worldMat);
+	sendToRasterizer.worldPos = sendToRasterizer.projectedCoordinate;
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, viewMat);
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, projMat);
 

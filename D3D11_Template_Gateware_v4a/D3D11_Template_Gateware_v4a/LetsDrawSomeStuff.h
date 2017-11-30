@@ -36,6 +36,7 @@ class LetsDrawSomeStuff
 	ID3D11InputLayout * IL;
 	ID3D11Buffer * vertBuffer2;
 	ID3D11Buffer * lightConstBuff;
+	ID3D11Buffer * pLightConBuff;
 
 	ID3D11Buffer * sprlVBuff;
 	unsigned int sprlVCount;
@@ -89,6 +90,13 @@ class LetsDrawSomeStuff
 		XMFLOAT4 color;
 	};
 
+	struct POINTLIGHT_TO_PSHADER {
+		XMFLOAT4 lightPos;
+		XMFLOAT4 color;
+		float radius;
+		XMFLOAT3 pad;
+	};
+
 	struct SEND_TO_VRAM {
 		XMFLOAT4X4 worldMat;
 		XMFLOAT4X4 viewMat;
@@ -97,6 +105,8 @@ class LetsDrawSomeStuff
 
 	SEND_TO_VRAM toShader;
 	DIRLIGHT_TO_PSHADER dirLight;
+	POINTLIGHT_TO_PSHADER pLight;
+	bool PLGrow = true;
 
 public:
 
@@ -435,11 +445,19 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			myDevice->CreateBuffer(&bDesc2, NULL, &lightConstBuff);
 
+			bDesc2.ByteWidth = sizeof(POINTLIGHT_TO_PSHADER);
+
+			myDevice->CreateBuffer(&bDesc2, NULL, &pLightConBuff);
+
 			//WORLD MATRICES CREATION
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
 			/*XMStoreFloat4x4(&TKWORLD, XMMatrixTranslation(0, 0.5f, 0) * XMMatrixScaling(0.5f, 0.5f, 0.5f));*/
 			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0, 0));
 			XMStoreFloat4x4(&SPRLWORLD, XMMatrixTranslation(0.45f, 0.68f, 0.8f));
+
+			pLight.color = { 1, 1, 1, 1 };
+			pLight.lightPos = { 0, 0.4f, 0, 1 };
+			pLight.radius = 0.5f;
 
 			//memory cleanup
 			/*delete[] TKverts;*/
@@ -479,6 +497,7 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	TKSRV->Release();*/
 
 	lightConstBuff->Release();
+	pLightConBuff->Release();
 
 	wolfTex->Release();
 	wolfSRV->Release();
@@ -611,6 +630,20 @@ void LetsDrawSomeStuff::Render()
 			dirLight.light = { 1.0f, 0, 0, 0 };
 			dirLight.color = { 1.0f, 0.75f, 0.75f, 0.75f };
 
+			if (PLGrow) {
+				pLight.radius += 0.5f * timestep;
+			}
+			else {
+				pLight.radius -= 0.5f * timestep;
+			}
+			
+			if (pLight.radius >= 2.0f) {
+				PLGrow = false;
+			}
+			else if (pLight.radius < 0.1f) {
+				PLGrow = true;
+			}
+
 			//set texture SRVs
 			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV };
 
@@ -632,6 +665,13 @@ void LetsDrawSomeStuff::Render()
 			myContext->Unmap(lightConstBuff, 0);
 
 			myContext->PSSetConstantBuffers(0, 1, &lightConstBuff);
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(pLightConBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &pLight, sizeof(pLight));
+			myContext->Unmap(pLightConBuff, 0);
+
+			myContext->PSSetConstantBuffers(1, 1, &pLightConBuff);
 
 			// TODO: PART 2 STEP 9a
 			UINT stride = sizeof(MYVERTEX);
