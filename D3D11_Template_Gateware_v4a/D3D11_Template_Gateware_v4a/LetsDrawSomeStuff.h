@@ -107,6 +107,8 @@ class LetsDrawSomeStuff
 	DIRLIGHT_TO_PSHADER dirLight;
 	POINTLIGHT_TO_PSHADER pLight;
 	bool PLGrow = true;
+	bool PLMv = true;
+	bool DLMv = true;
 
 public:
 
@@ -455,7 +457,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0, 0));
 			XMStoreFloat4x4(&SPRLWORLD, XMMatrixTranslation(0.45f, 0.68f, 0.8f));
 
-			pLight.color = { 1, 1, 0, 1 };
+			pLight.color = { 1, 0, 1, 1 };
 			pLight.lightPos = { 0, 0.4f, 0, 1 };
 			pLight.radius = 0.5f;
 
@@ -630,6 +632,20 @@ void LetsDrawSomeStuff::Render()
 			toShader.viewMat = VIEWMATRIX;
 			toShader.projMat = PROJECTIONMATRIX;
 
+			if (DLMv) {
+				dirLight.light.y += 0.8f * timestep;
+			}
+			else {
+				dirLight.light.y -= 0.8f * timestep;
+			}
+
+			if (dirLight.light.y >= 1) {
+				DLMv = false;
+			}
+			else if (dirLight.light.y <= -1) {
+				DLMv = true;
+			}
+
 
 			if (PLGrow) {
 				pLight.radius += 0.5f * timestep;
@@ -637,13 +653,29 @@ void LetsDrawSomeStuff::Render()
 			else {
 				pLight.radius -= 0.5f * timestep;
 			}
-			
+
 			if (pLight.radius >= 2.0f) {
 				PLGrow = false;
 			}
 			else if (pLight.radius < 0.1f) {
 				PLGrow = true;
 			}
+
+
+			if (PLMv) {
+				pLight.lightPos.z += 2 * timestep;
+			}
+			else {
+				pLight.lightPos.z -= 2 * timestep;
+			}
+
+			if (pLight.lightPos.z >= 1) {
+				PLMv = false;
+			}
+			else if (pLight.lightPos.z <= -1) {
+				PLMv = true;
+			}
+			
 
 			//set texture SRVs
 			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV };
