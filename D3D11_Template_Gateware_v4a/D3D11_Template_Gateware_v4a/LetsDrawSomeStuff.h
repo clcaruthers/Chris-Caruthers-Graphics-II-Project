@@ -37,6 +37,9 @@ class LetsDrawSomeStuff
 	ID3D11Buffer * vertBuffer2;
 	ID3D11Buffer * lightConstBuff;
 
+	ID3D11Buffer * sprlVBuff;
+	unsigned int sprlVCount;
+
 	/*ID3D11Buffer * TKvertBuffer;
 	ID3D11Buffer * TKIndexBuffer;
 	unsigned int TKvertCount;*/
@@ -57,6 +60,7 @@ class LetsDrawSomeStuff
 	XMFLOAT4X4 WORLDMATRIX;
 	/*XMFLOAT4X4 TKWORLD;*/
 	XMFLOAT4X4 WOLFWORLD;
+	XMFLOAT4X4 SPRLWORLD;
 
 	float xRot = 0;
 	float yRot = 0;
@@ -140,6 +144,22 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			viewport.TopLeftY = 0;
 			viewport.Height = (FLOAT)wHeight;
 			viewport.Width = (FLOAT)wWidth;*/
+
+			sprlVCount = 10000;
+			MYVERTEX * spiralVerts = new MYVERTEX[10000];
+
+			for (int i = 0; i < sprlVCount; ++i) {
+				float xo = (float)(rand() % 100) / 3000.0f;
+				float yo = (float)(rand() % 100) / 3000.0f;
+				float zo = (float)(rand() % 100) / 3000.0f;
+				spiralVerts[i].XYZW.x = ((cos(XMConvertToRadians(i)) * ((float)i / (float)sprlVCount)) / 2) + xo;
+				spiralVerts[i].XYZW.y = ((sin(XMConvertToRadians(i)) * ((float)i / (float)sprlVCount)) / 2) + yo;
+				spiralVerts[i].XYZW.z = ((float)i / (float)sprlVCount) + zo;
+				spiralVerts[i].XYZW.w = 1;
+				spiralVerts[i].UV = { 0, 0, 0, 0 };
+				spiralVerts[i].NORM = { 1, 0, 0, 0 };
+				spiralVerts[i].RGBA = { 1, 0, 1, 1 };
+			}
 
 			// TODO: PART 2 STEP 3a
 			vertCount = 6;
@@ -316,6 +336,15 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			// TODO: PART 2 STEP 3d
 			myDevice->CreateBuffer(&bDesc, &initData, &vertBuffer);
 
+			//spiral
+			bDesc.ByteWidth = sizeof(MYVERTEX) * sprlVCount;
+			D3D11_SUBRESOURCE_DATA sprlInit;
+			sprlInit.pSysMem = spiralVerts;
+			sprlInit.SysMemPitch = 0;
+			sprlInit.SysMemSlicePitch = 0;
+
+			myDevice->CreateBuffer(&bDesc, &sprlInit, &sprlVBuff);
+
 			//TENTACLE KNIGHT BUFFER CREATION
 			/*D3D11_BUFFER_DESC TKvertDesc;
 			TKvertDesc.Usage = D3D11_USAGE_IMMUTABLE;
@@ -409,11 +438,13 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			//WORLD MATRICES CREATION
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
 			/*XMStoreFloat4x4(&TKWORLD, XMMatrixTranslation(0, 0.5f, 0) * XMMatrixScaling(0.5f, 0.5f, 0.5f));*/
-			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0.5f, 0));
+			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0, 0));
+			XMStoreFloat4x4(&SPRLWORLD, XMMatrixTranslation(0.45f, 0.68f, 0.8f));
 
 			//memory cleanup
 			/*delete[] TKverts;*/
 			delete[] wolfVerts;
+			delete[] spiralVerts;
 		}
 	}
 }
@@ -432,6 +463,8 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	TKIndexBuffer->Release();*/
 	WolfVertBuffer->Release();
 	WolfIndexBuffer->Release();
+
+	sprlVBuff->Release();
 
 	vertBuffer2->Release();
 	pShader->Release();
@@ -513,6 +546,27 @@ void LetsDrawSomeStuff::Render()
 			if (GetAsyncKeyState('E'))
 				FOV += 10 * timestep;
 
+			if (GetAsyncKeyState(VK_NUMPAD9))
+				zFar += 10 * timestep;
+			if (GetAsyncKeyState(VK_NUMPAD6))
+				if (!((zFar - zNear) <= 1)) {
+					zFar -= 10 * timestep;
+				}
+			if (GetAsyncKeyState(VK_NUMPAD8))
+				if (!((zFar - zNear) <= 1)) {
+					zNear += 10 * timestep;
+				}
+			if (GetAsyncKeyState(VK_NUMPAD5))
+				zNear -= 10 * timestep;
+
+
+			if (zFar < 1)
+				zFar = 1;
+			if (zNear < 0.1f)
+				zNear = 0.1f;
+			if (zNear >= zFar)
+				zNear = zFar - 0.9f;
+
 			if (FOV < 10)
 				FOV = 10;
 			else if (FOV > 179)
@@ -561,6 +615,7 @@ void LetsDrawSomeStuff::Render()
 			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV };
 
 			//myContext->RSSetViewports(1, &viewport);
+
 
 			D3D11_MAPPED_SUBRESOURCE mapResource;
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -624,6 +679,17 @@ void LetsDrawSomeStuff::Render()
 			myContext->PSSetShaderResources(0, 1, &SRVs[1]);
 
 			myContext->DrawIndexed(6114, 0, 0);
+
+			toShader.worldMat = SPRLWORLD;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &sprlVBuff, &stride, &of);
+			
+			myContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
+			myContext->Draw(sprlVCount, 0);
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
