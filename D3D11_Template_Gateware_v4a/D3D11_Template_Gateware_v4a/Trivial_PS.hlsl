@@ -18,7 +18,7 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 {
 	float4 dirNorm = normalize(dir);
 	float4 texColor = tex.Sample(SS, UV.xy);
-	float rat = saturate(saturate(dot(dirNorm, norm)) + 0.25f);
+	float rat = saturate(saturate(dot(-dirNorm, norm)) + 0.1f);
 	float4 res1 = lerp(float4(0, 0, 0, 0), rgb, rat);
 
 	float4 pdir = normalize(loc - WP);

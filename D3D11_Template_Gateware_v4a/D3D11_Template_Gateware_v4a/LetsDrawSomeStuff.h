@@ -159,9 +159,9 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			MYVERTEX * spiralVerts = new MYVERTEX[10000];
 
 			for (int i = 0; i < sprlVCount; ++i) {
-				float xo = (float)(rand() % 100) / 3000.0f;
-				float yo = (float)(rand() % 100) / 3000.0f;
-				float zo = (float)(rand() % 100) / 3000.0f;
+				float xo = (float)(rand() % 100) / 4500.0f;
+				float yo = (float)(rand() % 100) / 4500.0f;
+				float zo = (float)(rand() % 100) / 4500.0f;
 				spiralVerts[i].XYZW.x = ((cos(XMConvertToRadians(i)) * ((float)i / (float)sprlVCount)) / 2) + xo;
 				spiralVerts[i].XYZW.y = ((sin(XMConvertToRadians(i)) * ((float)i / (float)sprlVCount)) / 2) + yo;
 				spiralVerts[i].XYZW.z = ((float)i / (float)sprlVCount) + zo;
@@ -455,9 +455,12 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0, 0));
 			XMStoreFloat4x4(&SPRLWORLD, XMMatrixTranslation(0.45f, 0.68f, 0.8f));
 
-			pLight.color = { 1, 1, 1, 1 };
+			pLight.color = { 1, 1, 0, 1 };
 			pLight.lightPos = { 0, 0.4f, 0, 1 };
 			pLight.radius = 0.5f;
+
+			dirLight.light = { -1.0f, -1.0f, 0, 0 };
+			dirLight.color = { 0.5f, 0.5f, 0.5f, 1.0f };
 
 			//memory cleanup
 			/*delete[] TKverts;*/
@@ -627,8 +630,6 @@ void LetsDrawSomeStuff::Render()
 			toShader.viewMat = VIEWMATRIX;
 			toShader.projMat = PROJECTIONMATRIX;
 
-			dirLight.light = { 1.0f, 0, 0, 0 };
-			dirLight.color = { 1.0f, 0.75f, 0.75f, 0.75f };
 
 			if (PLGrow) {
 				pLight.radius += 0.5f * timestep;
