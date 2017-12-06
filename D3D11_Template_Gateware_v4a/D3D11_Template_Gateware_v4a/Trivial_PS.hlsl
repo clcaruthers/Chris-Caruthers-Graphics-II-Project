@@ -14,7 +14,7 @@ cbuffer PLIGHT : register(b1) {
 	float3 pad;
 }
 
-float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float4 UV : TEXCOORD, float4 norm : NORMAL, float4 WP : WORLDPOS) : SV_TARGET
+float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float4 UV : TEXCOORD, float4 norm : NORMAL, float4 WP : WORLDPOS, float4 LP : LOCALPOS) : SV_TARGET
 {
 	float4 dirNorm = normalize(dir);
 	float4 texColor = tex.Sample(SS, UV.xy);

@@ -42,5 +42,7 @@
   <ItemGroup>
     <FxCompile Include="Trivial_PS.hlsl" />
     <FxCompile Include="Trivial_VS.hlsl" />
+    <FxCompile Include="SkyBox_PS.hlsl" />
+    <FxCompile Include="Instancing_VS.hlsl" />
   </ItemGroup>
 </Project>

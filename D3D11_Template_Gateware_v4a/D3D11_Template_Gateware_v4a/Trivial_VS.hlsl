@@ -15,6 +15,7 @@ struct OUTPUT_VERTEX
 	float4 UVout : TEXCOORD;
 	float4 normOut : NORMAL;
 	float4 worldPos : WORLDPOS;
+	float4 localPos : LOCALPOS;
 };
 
 // TODO: PART 3 STEP 2a
@@ -28,6 +29,7 @@ cbuffer THIS_IS_VRAM : register( b0 )
 OUTPUT_VERTEX main( INPUT_VERTEX fromVertexBuffer )
 {
 	OUTPUT_VERTEX sendToRasterizer = (OUTPUT_VERTEX)0;
+	sendToRasterizer.localPos = fromVertexBuffer.coordinate;
 	sendToRasterizer.projectedCoordinate = fromVertexBuffer.coordinate;
 	sendToRasterizer.UVout = fromVertexBuffer.UV;
 	sendToRasterizer.normOut = fromVertexBuffer.norm;

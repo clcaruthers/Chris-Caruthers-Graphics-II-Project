@@ -15,6 +15,7 @@
 
 #include "Trivial_PS.csh"
 #include "Trivial_VS.csh"
+#include "SkyBox_PS.csh"
 
 using namespace DirectX;
 
@@ -24,7 +25,7 @@ class LetsDrawSomeStuff
 	// variables here
 	GW::GRAPHICS::GDirectX11Surface* mySurface = nullptr;
 	// Gettting these handles from GDirectX11Surface will increase their internal refrence counts, be sure to "Release()" them when done!
-	ID3D11Device *myDevice = nullptr;
+	ID3D11Device *myDevice = nullptr; 
 	IDXGISwapChain *mySwapChain = nullptr;
 	ID3D11DeviceContext *myContext = nullptr;
 
@@ -41,6 +42,10 @@ class LetsDrawSomeStuff
 	ID3D11Buffer * sprlVBuff;
 	unsigned int sprlVCount;
 
+	ID3D11Buffer * skyBoxBuff;
+	ID3D11Buffer * SBIBuff;
+	unsigned int SBVCount;
+
 	/*ID3D11Buffer * TKvertBuffer;
 	ID3D11Buffer * TKIndexBuffer;
 	unsigned int TKvertCount;*/
@@ -52,6 +57,7 @@ class LetsDrawSomeStuff
 
 	ID3D11VertexShader * vShader;
 	ID3D11PixelShader * pShader;
+	ID3D11PixelShader * SBpSHader;
 
 	XTime timeObject;
 
@@ -62,6 +68,7 @@ class LetsDrawSomeStuff
 	/*XMFLOAT4X4 TKWORLD;*/
 	XMFLOAT4X4 WOLFWORLD;
 	XMFLOAT4X4 SPRLWORLD;
+	XMFLOAT4X4 SBWORLD;
 
 	float xRot = 0;
 	float yRot = 0;
@@ -78,6 +85,9 @@ class LetsDrawSomeStuff
 	ID3D11Texture2D * floorTex;
 	ID3D11ShaderResourceView * floorSRV;
 	ID3D11SamplerState * texSampler;
+
+	ID3D11Texture2D * skyBoxTex;
+	ID3D11ShaderResourceView * skyBoxSRV;
 
 	//ID3D11Texture2D * TKTex;
 	//ID3D11ShaderResourceView * TKSRV;
@@ -156,6 +166,151 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			viewport.TopLeftY = 0;
 			viewport.Height = (FLOAT)wHeight;
 			viewport.Width = (FLOAT)wWidth;*/
+
+			SBVCount = 8;
+			MYVERTEX SkyBoxVerts[8];
+			unsigned int SBICount = 36;
+			unsigned int SBIndicies[36];
+
+#pragma region
+
+			SkyBoxVerts[0].XYZW.x = -1;
+			SkyBoxVerts[0].XYZW.y = 1;
+			SkyBoxVerts[0].XYZW.z = 1;
+			SkyBoxVerts[0].XYZW.w = 1;
+			SkyBoxVerts[0].NORM.x = 0;
+			SkyBoxVerts[0].NORM.y = 0;
+			SkyBoxVerts[0].NORM.z = 0;
+			SkyBoxVerts[0].NORM.w = 0;
+			SkyBoxVerts[0].RGBA = SkyBoxVerts[0].NORM;
+			SkyBoxVerts[0].UV = SkyBoxVerts[0].NORM;
+
+			SkyBoxVerts[1].XYZW.x = 1;
+			SkyBoxVerts[1].XYZW.y = 1;
+			SkyBoxVerts[1].XYZW.z = 1;
+			SkyBoxVerts[1].XYZW.w = 1;
+			SkyBoxVerts[1].NORM.x = 0;
+			SkyBoxVerts[1].NORM.y = 0;
+			SkyBoxVerts[1].NORM.z = 0;
+			SkyBoxVerts[1].NORM.w = 0;
+			SkyBoxVerts[1].RGBA = SkyBoxVerts[0].NORM;
+			SkyBoxVerts[1].UV = SkyBoxVerts[0].NORM;
+
+			SkyBoxVerts[2].XYZW.x = 1;
+			SkyBoxVerts[2].XYZW.y = 1;
+			SkyBoxVerts[2].XYZW.z = -1;
+			SkyBoxVerts[2].XYZW.w = 1;
+			SkyBoxVerts[2].NORM.x = 0;
+			SkyBoxVerts[2].NORM.y = 0;
+			SkyBoxVerts[2].NORM.z = 0;
+			SkyBoxVerts[2].NORM.w = 0;
+			SkyBoxVerts[2].RGBA = SkyBoxVerts[0].NORM;
+			SkyBoxVerts[2].UV = SkyBoxVerts[0].NORM;
+
+			SkyBoxVerts[3].XYZW.x = -1;
+			SkyBoxVerts[3].XYZW.y = 1;
+			SkyBoxVerts[3].XYZW.z = -1;
+			SkyBoxVerts[3].XYZW.w = 1;
+			SkyBoxVerts[3].NORM.x = 0;
+			SkyBoxVerts[3].NORM.y = 0;
+			SkyBoxVerts[3].NORM.z = 0;
+			SkyBoxVerts[3].NORM.w = 0;
+			SkyBoxVerts[3].RGBA = SkyBoxVerts[0].NORM;
+			SkyBoxVerts[3].UV = SkyBoxVerts[0].NORM;
+
+			SkyBoxVerts[4].XYZW.x = -1;
+			SkyBoxVerts[4].XYZW.y = -1;
+			SkyBoxVerts[4].XYZW.z = 1;
+			SkyBoxVerts[4].XYZW.w = 1;
+			SkyBoxVerts[4].NORM.x = 0;
+			SkyBoxVerts[4].NORM.y = 0;
+			SkyBoxVerts[4].NORM.z = 0;
+			SkyBoxVerts[4].NORM.w = 0;
+			SkyBoxVerts[4].RGBA = SkyBoxVerts[0].NORM;
+			SkyBoxVerts[4].UV = SkyBoxVerts[0].NORM;
+
+			SkyBoxVerts[5].XYZW.x = 1;
+			SkyBoxVerts[5].XYZW.y = -1;
+			SkyBoxVerts[5].XYZW.z = 1;
+			SkyBoxVerts[5].XYZW.w = 1;
+			SkyBoxVerts[5].NORM.x = 0;
+			SkyBoxVerts[5].NORM.y = 0;
+			SkyBoxVerts[5].NORM.z = 0;
+			SkyBoxVerts[5].NORM.w = 0;
+			SkyBoxVerts[5].RGBA = SkyBoxVerts[0].NORM;
+			SkyBoxVerts[5].UV = SkyBoxVerts[0].NORM;
+
+			SkyBoxVerts[6].XYZW.x = 1;
+			SkyBoxVerts[6].XYZW.y = -1;
+			SkyBoxVerts[6].XYZW.z = -1;
+			SkyBoxVerts[6].XYZW.w = 1;
+			SkyBoxVerts[6].NORM.x = 0;
+			SkyBoxVerts[6].NORM.y = 0;
+			SkyBoxVerts[6].NORM.z = 0;
+			SkyBoxVerts[6].NORM.w = 0;
+			SkyBoxVerts[6].RGBA = SkyBoxVerts[0].NORM;
+			SkyBoxVerts[6].UV = SkyBoxVerts[0].NORM;
+
+			SkyBoxVerts[7].XYZW.x = -1;
+			SkyBoxVerts[7].XYZW.y = -1;
+			SkyBoxVerts[7].XYZW.z = -1;
+			SkyBoxVerts[7].XYZW.w = 1;
+			SkyBoxVerts[7].NORM.x = 0;
+			SkyBoxVerts[7].NORM.y = 0;
+			SkyBoxVerts[7].NORM.z = 0;
+			SkyBoxVerts[7].NORM.w = 0;
+			SkyBoxVerts[7].RGBA = SkyBoxVerts[0].NORM;
+			SkyBoxVerts[7].UV = SkyBoxVerts[0].NORM;
+
+			SBIndicies[0] = 0;
+			SBIndicies[1] = 1;
+			SBIndicies[2] = 4;
+
+			SBIndicies[3] = 1;
+			SBIndicies[4] = 5;
+			SBIndicies[5] = 4;
+			
+			SBIndicies[6] = 1;
+			SBIndicies[7] = 2;
+			SBIndicies[8] = 5;
+			
+			SBIndicies[9] = 2;
+			SBIndicies[10] = 6;
+			SBIndicies[11] = 5;
+			
+			SBIndicies[12] = 2;
+			SBIndicies[13] = 3;
+			SBIndicies[14] = 6;
+
+			SBIndicies[15] = 3;
+			SBIndicies[16] = 7;
+			SBIndicies[17] = 6;
+
+			SBIndicies[18] = 3;
+			SBIndicies[19] = 0;
+			SBIndicies[20] = 4;
+
+			SBIndicies[21] = 3;
+			SBIndicies[22] = 4;
+			SBIndicies[23] = 7;
+
+			SBIndicies[24] = 1;
+			SBIndicies[25] = 0;
+			SBIndicies[26] = 2;
+
+			SBIndicies[27] = 0;
+			SBIndicies[28] = 3;
+			SBIndicies[29] = 2;
+
+			SBIndicies[30] = 4;
+			SBIndicies[31] = 5;
+			SBIndicies[32] = 6;
+
+			SBIndicies[33] = 4;
+			SBIndicies[34] = 6;
+			SBIndicies[35] = 7;
+
+#pragma endregion
 
 			sprlVCount = 10000;
 			MYVERTEX * spiralVerts = new MYVERTEX[10000];
@@ -332,6 +487,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			CreateDDSTextureFromFile(myDevice, L"MetalFLoor.dds", (ID3D11Resource**)&floorTex, &floorSRV);
 			/*CreateDDSTextureFromFile(myDevice, L"Diffuse_Knight_Cleansed.dds", (ID3D11Resource**)&TKTex, &TKSRV);*/
 			CreateDDSTextureFromFile(myDevice, L"alphaBlackR.dds", (ID3D11Resource**)&wolfTex, &wolfSRV);
+			CreateDDSTextureFromFile(myDevice, L"nukeSkybox.dds", (ID3D11Resource**)&skyBoxTex, &skyBoxSRV);
 			// TODO: PART 2 STEP 3b
 			D3D11_BUFFER_DESC bDesc;
 			bDesc.Usage = D3D11_USAGE_IMMUTABLE;
@@ -396,15 +552,22 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			myDevice->CreateBuffer(&bDesc, &wolfInit, &WolfVertBuffer);
 
 			TKIDesc.ByteWidth = sizeof(unsigned int) * wolfICount;
-
 			wolfInit.pSysMem = &wolfIndicies;
-
 			myDevice->CreateBuffer(&TKIDesc, &wolfInit, &WolfIndexBuffer);
+
+			bDesc.ByteWidth = sizeof(MYVERTEX) * SBVCount;
+			wolfInit.pSysMem = &SkyBoxVerts;
+			myDevice->CreateBuffer(&bDesc, &wolfInit, &skyBoxBuff);
+
+			TKIDesc.ByteWidth = sizeof(unsigned int) * SBICount;
+			wolfInit.pSysMem = &SBIndicies;
+			myDevice->CreateBuffer(&TKIDesc, &wolfInit, &SBIBuff);
 			
 
 			// TODO: PART 2 STEP 7
 			myDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &vShader);
 			myDevice->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &pShader);
+			myDevice->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SBpSHader);
 			// TODO: PART 2 STEP 8a
 
 			D3D11_INPUT_ELEMENT_DESC IED[] = {
@@ -506,6 +669,10 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 
 	wolfTex->Release();
 	wolfSRV->Release();
+
+	skyBoxBuff->Release();
+	skyBoxSRV->Release();
+	skyBoxTex->Release();
 
 
 	if (mySurface) // Free Gateware Interface
@@ -615,6 +782,9 @@ void LetsDrawSomeStuff::Render()
 			XMMATRIX translate = XMMatrixTranslation(xShift, yShift, zShift);
 
 			XMMATRIX tempView = translate * rot;
+			XMFLOAT4X4 hold;
+			XMStoreFloat4x4(&hold, tempView);
+			XMStoreFloat4x4(&SBWORLD, XMMatrixTranslation(hold._41, hold._42, hold._43));
 			tempView = XMMatrixInverse(nullptr, tempView);
 			XMStoreFloat4x4(&VIEWMATRIX, tempView);
 			// Set active target for drawing, all array based D3D11 functions should use a syntax similar to below
@@ -628,7 +798,7 @@ void LetsDrawSomeStuff::Render()
 			
 			// TODO: Set your shaders, Update & Set your constant buffers, Attatch your vertex & index buffers, Set your InputLayout & Topology & Draw!
 
-			toShader.worldMat = WORLDMATRIX;
+			toShader.worldMat = SBWORLD;
 			toShader.viewMat = VIEWMATRIX;
 			toShader.projMat = PROJECTIONMATRIX;
 
@@ -678,12 +848,36 @@ void LetsDrawSomeStuff::Render()
 			
 
 			//set texture SRVs
-			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV };
+			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV };
 
 			//myContext->RSSetViewports(1, &viewport);
-
-
 			D3D11_MAPPED_SUBRESOURCE mapResource;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->VSSetConstantBuffers(0, 1, &vertBuffer2);
+			UINT stride = sizeof(MYVERTEX);
+			UINT of = 0;
+			myContext->IASetVertexBuffers(0, 1, &skyBoxBuff, &stride, &of);
+			myContext->IASetIndexBuffer(SBIBuff, DXGI_FORMAT_R32_UINT, 0);
+
+			myContext->VSSetShader(vShader, NULL, 0);
+			myContext->PSSetShader(SBpSHader, NULL, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[2]);
+			myContext->PSSetSamplers(0, 1, &texSampler);
+
+			myContext->IASetInputLayout(IL);
+
+			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			myContext->DrawIndexed(36, 0, 0);
+
+			myContext->ClearDepthStencilView(myDepthStencilView, D3D11_CLEAR_DEPTH, 1, 0); //RECLEAR depth buffer
+
+			toShader.worldMat = WORLDMATRIX;
+
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
 			memcpy(mapResource.pData, &toShader, sizeof(toShader));
@@ -706,18 +900,15 @@ void LetsDrawSomeStuff::Render()
 
 			myContext->PSSetConstantBuffers(1, 1, &pLightConBuff);
 
+			
 			// TODO: PART 2 STEP 9a
-			UINT stride = sizeof(MYVERTEX);
-			UINT of = 0;
 			myContext->IASetVertexBuffers(0, 1, &vertBuffer, &stride, &of);
 			// TODO: PART 2 STEP 9b
-			myContext->VSSetShader(vShader, NULL, 0);
-			myContext->PSSetShader(pShader, NULL, 0);
-			myContext->PSSetShaderResources(0, 1, &SRVs[0]);
-			myContext->PSSetSamplers(0, 1, &texSampler);
 
-			// TODO: PART 2 STEP 9c
-			myContext->IASetInputLayout(IL);
+			myContext->PSSetShader(pShader, NULL, 0);
+
+			myContext->PSSetShaderResources(0, 1, &SRVs[0]);
+
 
 			// TODO: PART 2 STEP 9d
 			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
