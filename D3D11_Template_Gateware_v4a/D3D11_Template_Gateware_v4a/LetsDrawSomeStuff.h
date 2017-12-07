@@ -17,6 +17,9 @@
 #include "Trivial_VS.csh"
 #include "SkyBox_PS.csh"
 #include "Instancing_VS.csh"
+#include "Creation_GS.csh"
+#include "Geometry_VS.csh"
+#include "Waving_VS.csh"
 
 using namespace DirectX;
 
@@ -46,6 +49,8 @@ class LetsDrawSomeStuff
 	ID3D11Buffer * sprlVBuff;
 	unsigned int sprlVCount;
 
+	ID3D11Buffer * GeoBuff;
+
 	ID3D11Buffer * skyBoxBuff;
 	ID3D11Buffer * SBIBuff;
 	unsigned int SBVCount;
@@ -63,6 +68,11 @@ class LetsDrawSomeStuff
 	ID3D11PixelShader * pShader;
 	ID3D11PixelShader * SBpSHader;
 	ID3D11VertexShader * IvShader;
+	ID3D11GeometryShader * gShader;
+	ID3D11VertexShader * GEOvShader;
+	ID3D11VertexShader * WAVEvSHader;
+
+	ID3D11Buffer * WVOffsetConBuff;
 
 	XTime timeObject;
 
@@ -74,6 +84,7 @@ class LetsDrawSomeStuff
 	XMFLOAT4X4 WOLFWORLD;
 	XMFLOAT4X4 SPRLWORLD;
 	XMFLOAT4X4 SBWORLD;
+	XMFLOAT4X4 GEOWORLD;
 
 	float xRot = 0;
 	float yRot = 0;
@@ -117,6 +128,12 @@ class LetsDrawSomeStuff
 		XMFLOAT4X4 viewMat;
 		XMFLOAT4X4 projMat;
 	};
+
+	struct WAVEINFO {
+		XMFLOAT4 offst;
+	};
+
+	WAVEINFO waveOffset;
 
 	SEND_TO_VRAM toShader;
 	DIRLIGHT_TO_PSHADER dirLight;
@@ -441,6 +458,28 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			verts[5].RGBA.w = 1;
 #pragma endregion
 
+			MYVERTEX geometry[1];
+			
+			geometry[0].XYZW.x = 0;
+			geometry[0].XYZW.y = 0;
+			geometry[0].XYZW.z = 0;
+			geometry[0].XYZW.w = 1;
+
+			geometry[0].UV.x = 0;
+			geometry[0].UV.y = 0;
+			geometry[0].UV.z = 0;
+			geometry[0].UV.w = 0;
+
+			geometry[0].NORM.x = 0;
+			geometry[0].NORM.y = 0;
+			geometry[0].NORM.z = -1;
+			geometry[0].NORM.w = 0;
+
+			geometry[0].RGBA.x = 1;
+			geometry[0].RGBA.y = 0;
+			geometry[0].RGBA.z = 1;
+			geometry[0].RGBA.w = 0;
+
 //			TKvertCount = 20163;
 //			MYVERTEX* TKverts = new MYVERTEX[20163];
 //			unsigned int TKIcount = 20163;
@@ -508,6 +547,14 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			initData.SysMemSlicePitch = 0;
 			// TODO: PART 2 STEP 3d
 			myDevice->CreateBuffer(&bDesc, &initData, &vertBuffer);
+
+			bDesc.ByteWidth = sizeof(MYVERTEX);
+			D3D11_SUBRESOURCE_DATA geoInit;
+			geoInit.pSysMem = &geometry;
+			geoInit.SysMemPitch = 0;
+			geoInit.SysMemSlicePitch = 0;
+
+			myDevice->CreateBuffer(&bDesc, &geoInit, &GeoBuff);
 
 			//spiral
 			bDesc.ByteWidth = sizeof(MYVERTEX) * sprlVCount;
@@ -711,6 +758,9 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			myDevice->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &pShader);
 			myDevice->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SBpSHader);
 			myDevice->CreateVertexShader(Instancing_VS, sizeof(Instancing_VS), NULL, &IvShader);
+			myDevice->CreateGeometryShader(Creation_GS, sizeof(Creation_GS), NULL, &gShader);
+			myDevice->CreateVertexShader(Geometry_VS, sizeof(Geometry_VS), NULL, &GEOvShader);
+			myDevice->CreateVertexShader(Waving_VS, sizeof(Waving_VS), NULL, &WAVEvSHader);
 			// TODO: PART 2 STEP 8a
 
 			D3D11_INPUT_ELEMENT_DESC IED[] = {
@@ -760,11 +810,16 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			myDevice->CreateBuffer(&bDesc2, NULL, &pLightConBuff);
 
+			bDesc2.ByteWidth = sizeof(waveOffset);
+
+			myDevice->CreateBuffer(&bDesc2, NULL, &WVOffsetConBuff);
+
 			//WORLD MATRICES CREATION
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
 			/*XMStoreFloat4x4(&TKWORLD, XMMatrixTranslation(0, 0.5f, 0) * XMMatrixScaling(0.5f, 0.5f, 0.5f));*/
 			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0, 0));
 			XMStoreFloat4x4(&SPRLWORLD, XMMatrixTranslation(0.45f, 0.68f, 0.8f));
+			XMStoreFloat4x4(&GEOWORLD, XMMatrixTranslation(-1, 0, 1));
 
 			pLight.color = { 1, 0, 1, 1 };
 			pLight.lightPos = { 0, 0.4f, 0, 1 };
@@ -772,6 +827,12 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			dirLight.light = { -1.0f, -1.0f, 0, 0 };
 			dirLight.color = { 0.5f, 0.5f, 0.5f, 1.0f };
+
+			waveOffset.offst.x = 6.28f;
+			waveOffset.offst.y = 0;
+			waveOffset.offst.z = 0;
+			waveOffset.offst.w = 0;
+
 
 			//memory cleanup
 			/*delete[] TKverts;*/
@@ -803,6 +864,9 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	vShader->Release();
 	SBpSHader->Release();
 	IvShader->Release();
+	gShader->Release();
+	GEOvShader->Release();
+	WAVEvSHader->Release();
 	IL->Release();
 	InstancingIL->Release();
 	
@@ -825,6 +889,10 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	skyBoxSRV->Release();
 	skyBoxTex->Release();
 	SBIBuff->Release();
+
+	GeoBuff->Release();
+
+	WVOffsetConBuff->Release();
 
 
 	if (mySurface) // Free Gateware Interface
@@ -926,6 +994,11 @@ void LetsDrawSomeStuff::Render()
 
 			if (xRot < 0)
 				xRot += 360;
+
+			waveOffset.offst.x += 2 * timestep;
+
+			if (waveOffset.offst.x >= 12.56f)
+				waveOffset.offst.x -= 6.28f;
 			
 			XMMATRIX xr = XMMatrixRotationX(XMConvertToRadians(xRot));
 			XMMATRIX yr = XMMatrixRotationY(XMConvertToRadians(yRot));
@@ -1097,7 +1170,7 @@ void LetsDrawSomeStuff::Render()
 			myContext->DrawIndexed(20163, 0, 0);*/
 
 			//draw wolf
-			myContext->VSSetShader(vShader, NULL, 0);
+			myContext->VSSetShader(WAVEvSHader, NULL, 0);
 
 			myContext->IASetInputLayout(IL);
 
@@ -1115,6 +1188,26 @@ void LetsDrawSomeStuff::Render()
 
 			myContext->DrawIndexed(6114, 0, 0);
 
+			//GEOMETRY STUFF
+			myContext->VSSetShader(GEOvShader, NULL, 0);
+			myContext->GSSetShader(gShader, NULL, 0);
+
+			toShader.worldMat = GEOWORLD;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &GeoBuff, &stride, &of);
+			myContext->GSSetConstantBuffers(0, 1, &vertBuffer2);
+
+			myContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+
+			myContext->Draw(1, 0);
+
+			myContext->GSSetShader(NULL, NULL, 0);
+			myContext->VSSetShader(WAVEvSHader, NULL, 0);
+
 			toShader.worldMat = SPRLWORLD;
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
@@ -1122,6 +1215,13 @@ void LetsDrawSomeStuff::Render()
 			myContext->Unmap(vertBuffer2, 0);
 
 			myContext->IASetVertexBuffers(0, 1, &sprlVBuff, &stride, &of);
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(WVOffsetConBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &waveOffset, sizeof(waveOffset));
+			myContext->Unmap(WVOffsetConBuff, 0);
+
+			myContext->VSSetConstantBuffers(1, 1, &WVOffsetConBuff);
 			
 			myContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
 			myContext->Draw(sprlVCount, 0);
