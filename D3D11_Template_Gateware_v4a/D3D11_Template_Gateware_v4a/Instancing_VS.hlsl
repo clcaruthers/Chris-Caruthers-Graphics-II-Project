@@ -6,6 +6,7 @@ struct INPUT_VERTEX
 	float4 UV : TEXCOORD;
 	float4 norm : NORMAL;
 	float4 color : COLOR;
+	float4 ipos : INSTANCEPOS;
 };
 
 struct OUTPUT_VERTEX
@@ -29,8 +30,9 @@ cbuffer THIS_IS_VRAM : register(b0)
 OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
 {
 	OUTPUT_VERTEX sendToRasterizer = (OUTPUT_VERTEX)0;
-	sendToRasterizer.localPos = fromVertexBuffer.coordinate;
-	sendToRasterizer.projectedCoordinate = fromVertexBuffer.coordinate;
+	float4 hold = fromVertexBuffer.coordinate + fromVertexBuffer.ipos;
+	sendToRasterizer.localPos = hold;
+	sendToRasterizer.projectedCoordinate = hold;
 	sendToRasterizer.UVout = fromVertexBuffer.UV;
 	sendToRasterizer.normOut = fromVertexBuffer.norm;
 	sendToRasterizer.colorOut = fromVertexBuffer.color;

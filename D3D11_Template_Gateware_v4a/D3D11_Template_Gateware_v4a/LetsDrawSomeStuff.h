@@ -16,6 +16,7 @@
 #include "Trivial_PS.csh"
 #include "Trivial_VS.csh"
 #include "SkyBox_PS.csh"
+#include "Instancing_VS.csh"
 
 using namespace DirectX;
 
@@ -35,9 +36,12 @@ class LetsDrawSomeStuff
 	ID3D11Buffer * vertBuffer;
 	unsigned int vertCount;
 	ID3D11InputLayout * IL;
+	ID3D11InputLayout * InstancingIL;
 	ID3D11Buffer * vertBuffer2;
 	ID3D11Buffer * lightConstBuff;
 	ID3D11Buffer * pLightConBuff;
+
+	ID3D11Buffer * floorInstanceBuff;
 
 	ID3D11Buffer * sprlVBuff;
 	unsigned int sprlVCount;
@@ -58,6 +62,7 @@ class LetsDrawSomeStuff
 	ID3D11VertexShader * vShader;
 	ID3D11PixelShader * pShader;
 	ID3D11PixelShader * SBpSHader;
+	ID3D11VertexShader * IvShader;
 
 	XTime timeObject;
 
@@ -513,6 +518,143 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			myDevice->CreateBuffer(&bDesc, &sprlInit, &sprlVBuff);
 
+			XMFLOAT4 instances[25];
+
+#pragma region
+			instances[0].x = -2;
+			instances[0].y = 0;
+			instances[0].z = 2;
+			instances[0].w = 0;
+
+			instances[1].x = 0;
+			instances[1].y = 0;
+			instances[1].z = 2;
+			instances[1].w = 0;
+
+			instances[2].x = 2;
+			instances[2].y = 0;
+			instances[2].z = 2;
+			instances[2].w = 0;
+
+			instances[3].x = -2;
+			instances[3].y = 0;
+			instances[3].z = 0;
+			instances[3].w = 0;
+
+			instances[4].x = 2;
+			instances[4].y = 0;
+			instances[4].z = 0;
+			instances[4].w = 0;
+
+			instances[5].x = -2;
+			instances[5].y = 0;
+			instances[5].z = -2;
+			instances[5].w = 0;
+
+			instances[6].x = 0;
+			instances[6].y = 0;
+			instances[6].z = -2;
+			instances[6].w = 0;
+
+			instances[7].x = 2;
+			instances[7].y = 0;
+			instances[7].z = -2;
+			instances[7].w = 0;
+
+			instances[8].x = -4;
+			instances[8].y = 0;
+			instances[8].z = 4;
+			instances[8].w = 0;
+
+			instances[9].x = -2;
+			instances[9].y = 0;
+			instances[9].z = 4;
+			instances[9].w = 0;
+
+			instances[10].x = 0;
+			instances[10].y = 0;
+			instances[10].z = 4;
+			instances[10].w = 0;
+
+			instances[11].x = 2;
+			instances[11].y = 0;
+			instances[11].z = 4;
+			instances[11].w = 0;
+
+			instances[12].x = 4;
+			instances[12].y = 0;
+			instances[12].z = 4;
+			instances[12].w = 0;
+
+			instances[13].x = -4;
+			instances[13].y = 0;
+			instances[13].z = 2;
+			instances[13].w = 0;
+
+			instances[14].x = 4;
+			instances[14].y = 0;
+			instances[14].z = 2;
+			instances[14].w = 0;
+
+			instances[15].x = -4;
+			instances[15].y = 0;
+			instances[15].z = 0;
+			instances[15].w = 0;
+
+			instances[16].x = 4;
+			instances[16].y = 0;
+			instances[16].z = 0;
+			instances[16].w = 0;
+
+			instances[17].x = -4;
+			instances[17].y = 0;
+			instances[17].z = -2;
+			instances[17].w = 0;
+
+			instances[18].x = 4;
+			instances[18].y = 0;
+			instances[18].z = -2;
+			instances[18].w = 0;
+
+			instances[19].x = -4;
+			instances[19].y = 0;
+			instances[19].z = -4;
+			instances[19].w = 0;
+
+			instances[20].x = -2;
+			instances[20].y = 0;
+			instances[20].z = -4;
+			instances[20].w = 0;
+
+			instances[21].x = 0;
+			instances[21].y = 0;
+			instances[21].z = -4;
+			instances[21].w = 0;
+
+			instances[22].x = 2;
+			instances[22].y = 0;
+			instances[22].z = -4;
+			instances[22].w = 0;
+
+			instances[23].x = 4;
+			instances[23].y = 0;
+			instances[23].z = -4;
+			instances[23].w = 0;
+
+			instances[24].x = 0;
+			instances[24].y = 0;
+			instances[24].z = 0;
+			instances[24].w = 0;
+
+#pragma endregion
+
+			bDesc.ByteWidth = sizeof(XMFLOAT4) * 25;
+			D3D11_SUBRESOURCE_DATA instncInit;
+			instncInit.pSysMem = &instances[0];
+			instncInit.SysMemPitch = 0;
+			instncInit.SysMemSlicePitch = 0;
+
+			myDevice->CreateBuffer(&bDesc, &instncInit, &floorInstanceBuff);
 			//TENTACLE KNIGHT BUFFER CREATION
 			/*D3D11_BUFFER_DESC TKvertDesc;
 			TKvertDesc.Usage = D3D11_USAGE_IMMUTABLE;
@@ -568,6 +710,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			myDevice->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &vShader);
 			myDevice->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &pShader);
 			myDevice->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &SBpSHader);
+			myDevice->CreateVertexShader(Instancing_VS, sizeof(Instancing_VS), NULL, &IvShader);
 			// TODO: PART 2 STEP 8a
 
 			D3D11_INPUT_ELEMENT_DESC IED[] = {
@@ -578,11 +721,14 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 				{"NORMAL", 0, DXGI_FORMAT_R32G32B32A32_FLOAT , 0, 32,
 				D3D11_INPUT_PER_VERTEX_DATA, 0},
 				{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 48,
-				D3D11_INPUT_PER_VERTEX_DATA, 0}
+				D3D11_INPUT_PER_VERTEX_DATA, 0},
+				{"INSTANCEPOS", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0,
+				D3D11_INPUT_PER_INSTANCE_DATA, 1}
 			};
 
 			// TODO: PART 2 STEP 8b
 			myDevice->CreateInputLayout(IED, 4, Trivial_VS, sizeof(Trivial_VS), &IL);
+			myDevice->CreateInputLayout(IED, 5, Instancing_VS, sizeof(Instancing_VS), &InstancingIL);
 
 			// TODO: PART 3 STEP 3
 			D3D11_BUFFER_DESC bDesc2;
@@ -655,11 +801,16 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	vertBuffer2->Release();
 	pShader->Release();
 	vShader->Release();
+	SBpSHader->Release();
+	IvShader->Release();
 	IL->Release();
+	InstancingIL->Release();
+	
 
 	floorTex->Release();
 	texSampler->Release();
 	floorSRV->Release();
+	floorInstanceBuff->Release();
 
 	/*TKTex->Release();
 	TKSRV->Release();*/
@@ -673,6 +824,7 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	skyBoxBuff->Release();
 	skyBoxSRV->Release();
 	skyBoxTex->Release();
+	SBIBuff->Release();
 
 
 	if (mySurface) // Free Gateware Interface
@@ -876,6 +1028,8 @@ void LetsDrawSomeStuff::Render()
 
 			myContext->ClearDepthStencilView(myDepthStencilView, D3D11_CLEAR_DEPTH, 1, 0); //RECLEAR depth buffer
 
+			myContext->VSSetShader(IvShader, NULL, 0);
+
 			toShader.worldMat = WORLDMATRIX;
 
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -900,20 +1054,33 @@ void LetsDrawSomeStuff::Render()
 
 			myContext->PSSetConstantBuffers(1, 1, &pLightConBuff);
 
+			ID3D11Buffer * floorBuffs[2];
+			floorBuffs[0] = vertBuffer;
+			floorBuffs[1] = floorInstanceBuff;
+
+			myContext->IASetInputLayout(InstancingIL);
+
+			UINT strides[2];
+			strides[0] = stride;
+			strides[1] = sizeof(XMFLOAT4);
+
+			UINT offsets[2];
+			offsets[0] = 0;
+			offsets[1] = 0;
 			
-			// TODO: PART 2 STEP 9a
-			myContext->IASetVertexBuffers(0, 1, &vertBuffer, &stride, &of);
-			// TODO: PART 2 STEP 9b
+			
+			myContext->IASetVertexBuffers(0, 2, floorBuffs, strides, offsets);
+			
 
 			myContext->PSSetShader(pShader, NULL, 0);
 
 			myContext->PSSetShaderResources(0, 1, &SRVs[0]);
 
 
-			// TODO: PART 2 STEP 9d
+			
 			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			// TODO: PART 2 STEP 10
-			myContext->Draw(6, 0);
+			
+			myContext->DrawInstanced(6, 25, 0, 0);
 
 			/*toShader.worldMat = TKWORLD;
 
@@ -930,6 +1097,10 @@ void LetsDrawSomeStuff::Render()
 			myContext->DrawIndexed(20163, 0, 0);*/
 
 			//draw wolf
+			myContext->VSSetShader(vShader, NULL, 0);
+
+			myContext->IASetInputLayout(IL);
+
 			toShader.worldMat = WOLFWORLD;
 
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
