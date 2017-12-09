@@ -35,7 +35,7 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	texColor.x = texColor.z;
 	texColor.z = texColor.y;
 	texColor.y = temp;*/
-	float rat = saturate(saturate(dot(-dirNorm, norm)) + 0.2f);
+	float rat = saturate(saturate(dot(-dirNorm, norm)) + 0.4f);
 	float4 res1 = lerp(float4(0, 0, 0, 0), rgb, rat);
 
 	float4 pdir = normalize(loc - WP);

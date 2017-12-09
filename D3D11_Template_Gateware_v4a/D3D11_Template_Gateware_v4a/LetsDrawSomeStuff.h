@@ -79,6 +79,21 @@ class LetsDrawSomeStuff
 	ID3D11Buffer * TieIndexBuffer;
 	unsigned int tieVertCount;
 
+	ID3D11Buffer * OceanVertBuffer;
+	ID3D11Buffer * OceanIndexBuffer;
+	unsigned int oceanVertCount;
+
+	ID3D11Buffer * IslandVertBuffer;
+	ID3D11Buffer * IslandIndexBuffer;
+	unsigned int IslandVertCount;
+	ID3D11Texture2D * IslandTex;
+	ID3D11ShaderResourceView * IslandSRV;
+
+	ID3D11Buffer * Palm1VertBuffer;
+	ID3D11Buffer * Palm1IndexBuffer;
+	unsigned int Palm1VertCount;
+	ID3D11Texture2D * Palm1Tex;
+	ID3D11ShaderResourceView * Palm1SRV;
 
 	ID3D11VertexShader * vShader;
 	ID3D11PixelShader * pShader;
@@ -102,6 +117,9 @@ class LetsDrawSomeStuff
 	XMFLOAT4X4 SBWORLD;
 	XMFLOAT4X4 GEOWORLD;
 	XMFLOAT4X4 TIEWORLD;
+	XMFLOAT4X4 PLANEWORLD;
+	XMFLOAT4X4 ISLANDWORLD;
+	XMFLOAT4X4 PALM1WORLD;
 
 	float xRot = 0;
 	float yRot = 0;
@@ -130,6 +148,11 @@ class LetsDrawSomeStuff
 
 	ID3D11Texture2D * TIETex;
 	ID3D11ShaderResourceView * TIESRV;
+
+	ID3D11Texture2D * OceanTex;
+	ID3D11ShaderResourceView * OceanSRV;
+
+	ID3D11RasterizerState * BFCController;
 
 	struct DIRLIGHT_TO_PSHADER {
 		XMFLOAT4 light;
@@ -690,8 +713,11 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			CreateDDSTextureFromFile(myDevice, L"MetalFLoor.dds", (ID3D11Resource**)&floorTex, &floorSRV);
 			/*CreateDDSTextureFromFile(myDevice, L"Diffuse_Knight_Cleansed.dds", (ID3D11Resource**)&TKTex, &TKSRV);*/
 			CreateDDSTextureFromFile(myDevice, L"alphaBlackR.dds", (ID3D11Resource**)&wolfTex, &wolfSRV);
-			CreateDDSTextureFromFile(myDevice, L"nukeSkybox.dds", (ID3D11Resource**)&skyBoxTex, &skyBoxSRV);
+			CreateDDSTextureFromFile(myDevice, L"IslandCube.dds", (ID3D11Resource**)&skyBoxTex, &skyBoxSRV);
 			CreateDDSTextureFromFile(myDevice, L"TIE_Interceptor.dds", (ID3D11Resource**)&TIETex, &TIESRV);
+			CreateDDSTextureFromFile(myDevice, L"ocean.dds", (ID3D11Resource**)&OceanTex, &OceanSRV);
+			CreateDDSTextureFromFile(myDevice, L"field.dds", (ID3D11Resource**)&IslandTex, &IslandSRV);
+			CreateDDSTextureFromFile(myDevice, L"palmtree.dds", (ID3D11Resource**)&Palm1Tex, &Palm1SRV);
 			// TODO: PART 2 STEP 3b
 			D3D11_BUFFER_DESC bDesc;
 			bDesc.Usage = D3D11_USAGE_IMMUTABLE;
@@ -979,21 +1005,27 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			myDevice->CreateBuffer(&bDesc2, NULL, &WVOffsetConBuff);
 
 			LoadModel(&TieVertBuffer, &TieIndexBuffer, &tieVertCount, "TIE.obj");
+			LoadModel(&OceanVertBuffer, &OceanIndexBuffer, &oceanVertCount, "Ocean.obj");
+			LoadModel(&IslandVertBuffer, &IslandIndexBuffer, &IslandVertCount, "island.obj");
+			LoadModel(&Palm1VertBuffer, &Palm1IndexBuffer, &Palm1VertCount, "palm_tree_lowpoly.obj");
 
 			//WORLD MATRICES CREATION
-			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
+			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixTranslation(0, -1, 0));
 			/*XMStoreFloat4x4(&TKWORLD, XMMatrixTranslation(0, 0.5f, 0) * XMMatrixScaling(0.5f, 0.5f, 0.5f));*/
 			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0, 0));
 			XMStoreFloat4x4(&SPRLWORLD, XMMatrixTranslation(0.45f, 0.68f, 0.8f));
 			XMStoreFloat4x4(&GEOWORLD, XMMatrixTranslation(-3, 0, 3));
 			XMStoreFloat4x4(&TIEWORLD, XMMatrixScaling(0.2f, 0.2f, 0.2f) * XMMatrixRotationY(XMConvertToRadians(180)) *  XMMatrixTranslation(-1, 1, 1));
+			XMStoreFloat4x4(&PLANEWORLD, XMMatrixScaling(5, 5, 5));
+			XMStoreFloat4x4(&ISLANDWORLD, XMMatrixTranslation(0, -0.8f, 0));
+			XMStoreFloat4x4(&PALM1WORLD, XMMatrixScaling(0.5f ,0.5f, 0.5f) * XMMatrixTranslation(-0.5f, 0.5f, 0.5f));
 
 			pLight.color = { 1, 0, 1, 1 };
 			pLight.lightPos = { 0, 0.4f, 0, 1 };
 			pLight.radius = 0.5f;
 
-			dirLight.light = { -1.0f, -1.0f, 0, 0 };
-			dirLight.color = { 0.5f, 0.5f, 0.5f, 1.0f };
+			dirLight.light = { 0, -1, -1, 0 };
+			dirLight.color = { 0.8f, 0.2f, 0, 1.0f };
 
 			cLight.color = { 1, 1, 0, 1 };
 			cLight.lightPos = { 0, 1, 1, 1 };
@@ -1004,6 +1036,20 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			waveOffset.offst.y = 0;
 			waveOffset.offst.z = 0;
 			waveOffset.offst.w = 0;
+
+			D3D11_RASTERIZER_DESC rDesc;
+			rDesc.CullMode = D3D11_CULL_NONE;
+			rDesc.DepthBias = 0;
+			rDesc.FillMode = D3D11_FILL_SOLID;
+			rDesc.FrontCounterClockwise = false;
+			rDesc.SlopeScaledDepthBias = 0.0f;
+			rDesc.DepthBiasClamp = 0.0f;
+			rDesc.DepthClipEnable = true;
+			rDesc.ScissorEnable = false;
+			rDesc.MultisampleEnable = false;
+			rDesc.AntialiasedLineEnable = false;
+
+			myDevice->CreateRasterizerState(&rDesc, &BFCController);
 
 
 			//memory cleanup
@@ -1068,6 +1114,23 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	TIETex->Release();
 	TIESRV->Release();
 
+	OceanVertBuffer->Release();
+	OceanIndexBuffer->Release();
+	OceanTex->Release();
+	OceanSRV->Release();
+
+	IslandVertBuffer->Release();
+	IslandIndexBuffer->Release();
+	IslandTex->Release();
+	IslandSRV->Release();
+
+	Palm1VertBuffer->Release();
+	Palm1IndexBuffer->Release();
+	Palm1Tex->Release();
+	Palm1SRV->Release();
+
+	BFCController->Release();
+
 	GeoBuff->Release();
 
 	WVOffsetConBuff->Release();
@@ -1099,6 +1162,8 @@ void LetsDrawSomeStuff::Render()
 
 			mySurface->GetAspectRatio(aspectRatio);
 			XMStoreFloat4x4(&PROJECTIONMATRIX, XMMatrixPerspectiveFovLH(XMConvertToRadians(FOV), aspectRatio, zNear, zFar));
+
+			myContext->RSSetState(BFCController);
 
 			timeObject.Signal();
 			double timestep = timeObject.Delta();
@@ -1205,7 +1270,7 @@ void LetsDrawSomeStuff::Render()
 			toShader.viewMat = VIEWMATRIX;
 			toShader.projMat = PROJECTIONMATRIX;
 
-			if (DLMv) {
+			/*if (DLMv) {
 				dirLight.light.y += 0.8f * timestep;
 			}
 			else {
@@ -1217,7 +1282,7 @@ void LetsDrawSomeStuff::Render()
 			}
 			else if (dirLight.light.y <= -1) {
 				DLMv = true;
-			}
+			}*/
 
 
 			if (PLGrow) {
@@ -1280,7 +1345,7 @@ void LetsDrawSomeStuff::Render()
 			
 
 			//set texture SRVs
-			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV, TIESRV };
+			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV, TIESRV, OceanSRV, IslandSRV, Palm1SRV };
 
 			//myContext->RSSetViewports(1, &viewport);
 			D3D11_MAPPED_SUBRESOURCE mapResource;
@@ -1362,12 +1427,25 @@ void LetsDrawSomeStuff::Render()
 			myContext->PSSetShader(pShader, NULL, 0);
 
 			myContext->PSSetShaderResources(0, 1, &SRVs[0]);
-
-
 			
 			myContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			
 			myContext->DrawInstanced(6, 25, 0, 0);
+
+			myContext->VSSetShader(WAVEvSHader, NULL, 0);
+			myContext->IASetInputLayout(IL);
+			toShader.worldMat = PLANEWORLD;
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &OceanVertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(OceanIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[4]);
+
+			myContext->DrawIndexed(oceanVertCount, 0, 0);
 
 			/*toShader.worldMat = TKWORLD;
 
@@ -1386,8 +1464,6 @@ void LetsDrawSomeStuff::Render()
 			//draw wolf
 			myContext->VSSetShader(WAVEvSHader, NULL, 0);
 
-			myContext->IASetInputLayout(IL);
-
 			toShader.worldMat = WOLFWORLD;
 
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -1398,9 +1474,9 @@ void LetsDrawSomeStuff::Render()
 			myContext->IASetVertexBuffers(0, 1, &WolfVertBuffer, &stride, &of);
 			myContext->IASetIndexBuffer(WolfIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
-			myContext->PSSetShaderResources(0, 1, &SRVs[1]);
+			//myContext->PSSetShaderResources(0, 1, &SRVs[1]);
 
-			myContext->DrawIndexed(6114, 0, 0);
+			//myContext->DrawIndexed(6114, 0, 0);
 
 			//DRAW TIE
 			myContext->VSSetShader(vShader, NULL, 0);
@@ -1417,6 +1493,34 @@ void LetsDrawSomeStuff::Render()
 
 			myContext->DrawIndexed(tieVertCount, 0, 0);
 
+			//DRAW ISLAND
+			toShader.worldMat = ISLANDWORLD;
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &IslandVertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(IslandIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[5]);
+
+			myContext->DrawIndexed(IslandVertCount, 0, 0);
+
+			//DRAW PALM1
+			toShader.worldMat = PALM1WORLD;
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &Palm1VertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(Palm1IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[6]);
+
+			myContext->DrawIndexed(Palm1VertCount, 0, 0);
+
 			//GEOMETRY STUFF
 			myContext->VSSetShader(GEOvShader, NULL, 0);
 			myContext->GSSetShader(gShader, NULL, 0);
@@ -1432,18 +1536,18 @@ void LetsDrawSomeStuff::Render()
 
 			myContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY::D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
 
-			myContext->Draw(1, 0);
+			//myContext->Draw(1, 0);
 
 			myContext->GSSetShader(NULL, NULL, 0);
-			myContext->VSSetShader(WAVEvSHader, NULL, 0);
+			//myContext->VSSetShader(vShader, NULL, 0);
 
-			toShader.worldMat = SPRLWORLD;
+			/*toShader.worldMat = SPRLWORLD;
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
 			memcpy(mapResource.pData, &toShader, sizeof(toShader));
-			myContext->Unmap(vertBuffer2, 0);
+			myContext->Unmap(vertBuffer2, 0);*/
 
-			myContext->IASetVertexBuffers(0, 1, &sprlVBuff, &stride, &of);
+			//myContext->IASetVertexBuffers(0, 1, &sprlVBuff, &stride, &of);
 
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 			myContext->Map(WVOffsetConBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
@@ -1453,7 +1557,7 @@ void LetsDrawSomeStuff::Render()
 			myContext->VSSetConstantBuffers(1, 1, &WVOffsetConBuff);
 			
 			myContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
-			myContext->Draw(sprlVCount, 0);
+			//myContext->Draw(sprlVCount, 0);
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
