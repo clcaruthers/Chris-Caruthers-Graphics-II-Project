@@ -14,6 +14,14 @@ cbuffer PLIGHT : register(b1) {
 	float3 pad;
 }
 
+cbuffer CONELIGHT : register(b2) {
+	float4 clpos;
+	float4 clcol;
+	float4 cldir;
+	float coneratio;
+	float3 pad2;
+}
+
 float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float4 UV : TEXCOORD, float4 norm : NORMAL, float4 WP : WORLDPOS, float4 LP : LOCALPOS) : SV_TARGET
 {
 	float4 dirNorm = normalize(dir);
@@ -37,5 +45,12 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	atn = atn * atn;
 	float4 res2 = lerp(float4(0, 0, 0, 0), col, prat) * atn;
 
-	return saturate(saturate(res1 + res2) * texColor);
+	float4 conedir = normalize(cldir);
+	float4 cdir = normalize(clpos - WP);
+	float surfaceratio = saturate(dot(-cdir, conedir));
+	float spotfactor = (surfaceratio > coneratio) ? 1 : 0;
+	float lightratio = saturate(dot(cdir, norm));
+	float4 res3 = spotfactor * lightratio * clcol;
+
+	return saturate(saturate(res1 + res2 + res3) * texColor);
 }

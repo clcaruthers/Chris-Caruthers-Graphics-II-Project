@@ -40,6 +40,7 @@ OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
 
 	sendToRasterizer.UVout = fromVertexBuffer.UV;
 	sendToRasterizer.normOut = fromVertexBuffer.norm;
+	sendToRasterizer.normOut = normalize(mul(sendToRasterizer.normOut, worldMat));
 	sendToRasterizer.colorOut = fromVertexBuffer.color;
 
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, worldMat);

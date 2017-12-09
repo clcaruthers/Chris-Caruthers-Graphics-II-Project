@@ -8,6 +8,9 @@
 // Include DirectX11 for interface access
 #include <d3d11.h>
 #include <DirectXMath.h>
+#include <fstream>
+#include <vector>
+#include <string>
 #include "XTime.h"
 #include "DDSTextureLoader.h"
 #include "TentacleKnight.h"
@@ -22,6 +25,14 @@
 #include "Waving_VS.csh"
 
 using namespace DirectX;
+using namespace std;
+
+struct MYVERTEX {
+	XMFLOAT4 XYZW;
+	XMFLOAT4 UV;
+	XMFLOAT4 NORM;
+	XMFLOAT4 RGBA;
+};
 
 // Simple Container class to make life easier/cleaner
 class LetsDrawSomeStuff
@@ -43,6 +54,7 @@ class LetsDrawSomeStuff
 	ID3D11Buffer * vertBuffer2;
 	ID3D11Buffer * lightConstBuff;
 	ID3D11Buffer * pLightConBuff;
+	ID3D11Buffer * cLightConBuff;
 
 	ID3D11Buffer * floorInstanceBuff;
 
@@ -62,6 +74,10 @@ class LetsDrawSomeStuff
 	ID3D11Buffer * WolfVertBuffer;
 	ID3D11Buffer * WolfIndexBuffer;
 	unsigned int WolfVertCount;
+
+	ID3D11Buffer * TieVertBuffer;
+	ID3D11Buffer * TieIndexBuffer;
+	unsigned int tieVertCount;
 
 
 	ID3D11VertexShader * vShader;
@@ -85,6 +101,7 @@ class LetsDrawSomeStuff
 	XMFLOAT4X4 SPRLWORLD;
 	XMFLOAT4X4 SBWORLD;
 	XMFLOAT4X4 GEOWORLD;
+	XMFLOAT4X4 TIEWORLD;
 
 	float xRot = 0;
 	float yRot = 0;
@@ -111,6 +128,9 @@ class LetsDrawSomeStuff
 	ID3D11Texture2D * wolfTex;
 	ID3D11ShaderResourceView * wolfSRV;
 
+	ID3D11Texture2D * TIETex;
+	ID3D11ShaderResourceView * TIESRV;
+
 	struct DIRLIGHT_TO_PSHADER {
 		XMFLOAT4 light;
 		XMFLOAT4 color;
@@ -120,6 +140,14 @@ class LetsDrawSomeStuff
 		XMFLOAT4 lightPos;
 		XMFLOAT4 color;
 		float radius;
+		XMFLOAT3 pad;
+	};
+
+	struct CONELIGHT_TO_PSHADER {
+		XMFLOAT4 lightPos;
+		XMFLOAT4 color;
+		XMFLOAT4 coneDir;
+		float coneRatio;
 		XMFLOAT3 pad;
 	};
 
@@ -138,18 +166,16 @@ class LetsDrawSomeStuff
 	SEND_TO_VRAM toShader;
 	DIRLIGHT_TO_PSHADER dirLight;
 	POINTLIGHT_TO_PSHADER pLight;
+	CONELIGHT_TO_PSHADER cLight;
 	bool PLGrow = true;
 	bool PLMv = true;
 	bool DLMv = true;
+	bool CLMv = true;
+	bool CLRt = true;
 
 public:
 
-	struct MYVERTEX {
-		XMFLOAT4 XYZW;
-		XMFLOAT4 UV;
-		XMFLOAT4 NORM;
-		XMFLOAT4 RGBA;
-	};
+	void LoadModel(ID3D11Buffer ** VertBuffer, ID3D11Buffer ** IndexBuffer, unsigned int * vCount, char * filepath);
 
 	// Init
 	LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint);
@@ -158,6 +184,139 @@ public:
 	// Draw
 	void Render();
 };
+
+void LetsDrawSomeStuff::LoadModel(ID3D11Buffer ** VertBuffer, ID3D11Buffer ** IndexBuffer, unsigned int * vCount, char * filepath) {
+	fstream file;
+	file.open(filepath, ios_base::in);
+	vector<XMFLOAT4> positions;
+	vector<XMFLOAT4> normals;
+	vector<XMFLOAT4> UVs;
+	vector<unsigned int> posIndecies;
+	vector<unsigned int> normIndecies;
+	vector<unsigned int> UVIndecies;
+	int verts = 0;
+
+	while (!file.eof()) {
+		string in;
+		file >> in;
+
+		if (in == "v") {
+			float x;
+			float y;
+			float z;
+			file >> x;
+			file >> y;
+			file >> z;
+
+			XMFLOAT4 hold = { x, y, z, 1 };
+			positions.push_back(hold);
+		}
+		else if (in == "vt") {
+			float u;
+			float v;
+			file >> u;
+			file >> v;
+
+			v = 1 - v;
+
+			XMFLOAT4 uv = { u, v, 0, 0 };
+			UVs.push_back(uv);
+		}
+		else if (in == "vn") {
+			float xn;
+			float yn;
+			float zn;
+			file >> xn;
+			file >> yn;
+			file >> zn;
+
+			XMFLOAT4 norm = { xn, yn, zn, 0 };
+			normals.push_back(norm);
+		}
+		else if (in == "f") {
+			unsigned int p;
+			unsigned int t;
+			unsigned int n;
+			string buf;
+
+			getline(file, buf, '/');
+			p = atoi(buf.c_str()) - 1;
+			posIndecies.push_back(p);
+			getline(file, buf, '/');
+			t = atoi(buf.c_str()) - 1;
+			UVIndecies.push_back(t);
+			getline(file, buf, ' ');
+			n = atoi(buf.c_str()) - 1;
+			normIndecies.push_back(n);
+			verts++;
+
+			getline(file, buf, '/');
+			p = atoi(buf.c_str()) - 1;
+			posIndecies.push_back(p);
+			getline(file, buf, '/');
+			t = atoi(buf.c_str()) - 1;
+			UVIndecies.push_back(t);
+			getline(file, buf, ' ');
+			n = atoi(buf.c_str()) - 1;
+			normIndecies.push_back(n);
+			verts++;
+
+			getline(file, buf, '/');
+			p = atoi(buf.c_str()) - 1;
+			posIndecies.push_back(p);
+			getline(file, buf, '/');
+			t = atoi(buf.c_str()) - 1;
+			UVIndecies.push_back(t);
+			getline(file, buf);
+			n = atoi(buf.c_str()) - 1;
+			normIndecies.push_back(n);
+			verts++;
+		}
+	}
+
+	MYVERTEX * Vs = new MYVERTEX[verts];
+	unsigned int * indecies = new unsigned int[verts];
+
+	for (int i = 0; i < verts; i++) {
+		indecies[i] = i;
+		Vs[i].XYZW = positions[posIndecies[i]];
+		Vs[i].UV = UVs[UVIndecies[i]];
+		Vs[i].NORM = normals[normIndecies[i]];
+		Vs[i].RGBA = { 1, 1, 1, 1 };
+	}
+
+	D3D11_BUFFER_DESC bDesc;
+	bDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	bDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	bDesc.CPUAccessFlags = NULL;
+	bDesc.ByteWidth = sizeof(MYVERTEX) * verts;
+	bDesc.MiscFlags = 0;
+	bDesc.StructureByteStride = 0;
+
+	D3D11_SUBRESOURCE_DATA initData;
+	initData.pSysMem = Vs;
+	initData.SysMemPitch = 0;
+	initData.SysMemSlicePitch = 0;
+
+	myDevice->CreateBuffer(&bDesc, &initData, VertBuffer);
+
+	D3D11_BUFFER_DESC TKIDesc;
+	TKIDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	TKIDesc.BindFlags = D3D10_BIND_INDEX_BUFFER;
+	TKIDesc.CPUAccessFlags = NULL;
+	TKIDesc.ByteWidth = sizeof(unsigned int) * verts;
+	TKIDesc.MiscFlags = 0;
+	TKIDesc.StructureByteStride = 0;
+
+	initData.pSysMem = indecies;
+
+	myDevice->CreateBuffer(&TKIDesc, &initData, IndexBuffer);
+
+	*vCount = verts;
+
+	delete[] Vs;
+	delete[] indecies;
+}
 
 // Init
 LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
@@ -532,6 +691,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			/*CreateDDSTextureFromFile(myDevice, L"Diffuse_Knight_Cleansed.dds", (ID3D11Resource**)&TKTex, &TKSRV);*/
 			CreateDDSTextureFromFile(myDevice, L"alphaBlackR.dds", (ID3D11Resource**)&wolfTex, &wolfSRV);
 			CreateDDSTextureFromFile(myDevice, L"nukeSkybox.dds", (ID3D11Resource**)&skyBoxTex, &skyBoxSRV);
+			CreateDDSTextureFromFile(myDevice, L"TIE_Interceptor.dds", (ID3D11Resource**)&TIETex, &TIESRV);
 			// TODO: PART 2 STEP 3b
 			D3D11_BUFFER_DESC bDesc;
 			bDesc.Usage = D3D11_USAGE_IMMUTABLE;
@@ -810,16 +970,23 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			myDevice->CreateBuffer(&bDesc2, NULL, &pLightConBuff);
 
+			bDesc2.ByteWidth = sizeof(CONELIGHT_TO_PSHADER);
+
+			myDevice->CreateBuffer(&bDesc2, NULL, &cLightConBuff);
+
 			bDesc2.ByteWidth = sizeof(waveOffset);
 
 			myDevice->CreateBuffer(&bDesc2, NULL, &WVOffsetConBuff);
+
+			LoadModel(&TieVertBuffer, &TieIndexBuffer, &tieVertCount, "TIE.obj");
 
 			//WORLD MATRICES CREATION
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixIdentity());
 			/*XMStoreFloat4x4(&TKWORLD, XMMatrixTranslation(0, 0.5f, 0) * XMMatrixScaling(0.5f, 0.5f, 0.5f));*/
 			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0, 0));
 			XMStoreFloat4x4(&SPRLWORLD, XMMatrixTranslation(0.45f, 0.68f, 0.8f));
-			XMStoreFloat4x4(&GEOWORLD, XMMatrixTranslation(-1, 0, 1));
+			XMStoreFloat4x4(&GEOWORLD, XMMatrixTranslation(-3, 0, 3));
+			XMStoreFloat4x4(&TIEWORLD, XMMatrixScaling(0.2f, 0.2f, 0.2f) * XMMatrixRotationY(XMConvertToRadians(180)) *  XMMatrixTranslation(-1, 1, 1));
 
 			pLight.color = { 1, 0, 1, 1 };
 			pLight.lightPos = { 0, 0.4f, 0, 1 };
@@ -827,6 +994,11 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			dirLight.light = { -1.0f, -1.0f, 0, 0 };
 			dirLight.color = { 0.5f, 0.5f, 0.5f, 1.0f };
+
+			cLight.color = { 1, 1, 0, 1 };
+			cLight.lightPos = { 0, 1, 1, 1 };
+			cLight.coneDir = { 0, -1, -1, 0 };
+			cLight.coneRatio = 0.9f;
 
 			waveOffset.offst.x = 6.28f;
 			waveOffset.offst.y = 0;
@@ -881,6 +1053,7 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 
 	lightConstBuff->Release();
 	pLightConBuff->Release();
+	cLightConBuff->Release();
 
 	wolfTex->Release();
 	wolfSRV->Release();
@@ -889,6 +1062,11 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	skyBoxSRV->Release();
 	skyBoxTex->Release();
 	SBIBuff->Release();
+
+	TieVertBuffer->Release();
+	TieIndexBuffer->Release();
+	TIETex->Release();
+	TIESRV->Release();
 
 	GeoBuff->Release();
 
@@ -1070,10 +1248,39 @@ void LetsDrawSomeStuff::Render()
 			else if (pLight.lightPos.z <= -1) {
 				PLMv = true;
 			}
+
+			if (CLMv) {
+				cLight.lightPos.x += 2 * timestep;
+			}
+			else {
+				cLight.lightPos.x -= 2 * timestep;
+			}
+
+			if (cLight.lightPos.x >= 5) {
+				CLMv = false;
+			}
+			else if (cLight.lightPos.x <= -5) {
+				CLMv = true;
+			}
+
+			if (CLRt) {
+				cLight.coneDir.x += 0.5f * timestep;
+			}
+			else {
+				cLight.coneDir.x -= 0.5f * timestep;
+			}
+
+			if (cLight.coneDir.x >= 1) {
+				CLRt = false;
+			}
+			else if (cLight.coneDir.x <= -1) {
+				CLRt = true;
+			}
+
 			
 
 			//set texture SRVs
-			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV };
+			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV, TIESRV };
 
 			//myContext->RSSetViewports(1, &viewport);
 			D3D11_MAPPED_SUBRESOURCE mapResource;
@@ -1126,6 +1333,13 @@ void LetsDrawSomeStuff::Render()
 			myContext->Unmap(pLightConBuff, 0);
 
 			myContext->PSSetConstantBuffers(1, 1, &pLightConBuff);
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(cLightConBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &cLight, sizeof(cLight));
+			myContext->Unmap(cLightConBuff, 0);
+
+			myContext->PSSetConstantBuffers(2, 1, &cLightConBuff);
 
 			ID3D11Buffer * floorBuffs[2];
 			floorBuffs[0] = vertBuffer;
@@ -1187,6 +1401,21 @@ void LetsDrawSomeStuff::Render()
 			myContext->PSSetShaderResources(0, 1, &SRVs[1]);
 
 			myContext->DrawIndexed(6114, 0, 0);
+
+			//DRAW TIE
+			myContext->VSSetShader(vShader, NULL, 0);
+			toShader.worldMat = TIEWORLD;
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &TieVertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(TieIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[3]);
+
+			myContext->DrawIndexed(tieVertCount, 0, 0);
 
 			//GEOMETRY STUFF
 			myContext->VSSetShader(GEOvShader, NULL, 0);
