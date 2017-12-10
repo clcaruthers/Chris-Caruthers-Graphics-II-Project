@@ -35,15 +35,15 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	texColor.x = texColor.z;
 	texColor.z = texColor.y;
 	texColor.y = temp;*/
-	float rat = saturate(saturate(dot(-dirNorm, norm)) + 0.4f);
-	float4 res1 = lerp(float4(0, 0, 0, 0), rgb, rat);
+	float rat = saturate(saturate(dot(-dirNorm, norm)) + 0.2f);
+	float4 res1 = lerp(float4(0, 0, 0, 1), rgb, rat);
 
 	float4 pdir = normalize(loc - WP);
 	float d = dot(pdir, norm);
 	float prat = saturate(d);
 	float atn = 1.0f - saturate(length(loc - WP) / rad);
 	atn = atn * atn;
-	float4 res2 = lerp(float4(0, 0, 0, 0), col, prat) * atn;
+	float4 res2 = lerp(float4(0, 0, 0, 1), col, prat) * atn;
 
 	float4 conedir = normalize(cldir);
 	float4 cdir = normalize(clpos - WP);
@@ -52,5 +52,5 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	float lightratio = saturate(dot(cdir, norm));
 	float4 res3 = spotfactor * lightratio * clcol;
 
-	return saturate(saturate(res1 + res2 + res3) * texColor);
+	return saturate(saturate(res1 + res2) * texColor);
 }

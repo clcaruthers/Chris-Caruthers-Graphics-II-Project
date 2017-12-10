@@ -23,6 +23,7 @@
 #include "Creation_GS.csh"
 #include "Geometry_VS.csh"
 #include "Waving_VS.csh"
+#include "Ocean_PS.csh"
 
 using namespace DirectX;
 using namespace std;
@@ -95,6 +96,12 @@ class LetsDrawSomeStuff
 	ID3D11Texture2D * Palm1Tex;
 	ID3D11ShaderResourceView * Palm1SRV;
 
+	ID3D11Buffer * CFVertBuffer;
+	ID3D11Buffer * CFIndexBuffer;
+	unsigned int CFVertCount;
+	ID3D11Texture2D * CFTex;
+	ID3D11ShaderResourceView * CFSRV;
+
 	ID3D11VertexShader * vShader;
 	ID3D11PixelShader * pShader;
 	ID3D11PixelShader * SBpSHader;
@@ -102,6 +109,7 @@ class LetsDrawSomeStuff
 	ID3D11GeometryShader * gShader;
 	ID3D11VertexShader * GEOvShader;
 	ID3D11VertexShader * WAVEvSHader;
+	ID3D11PixelShader * OceanpShader;
 
 	ID3D11Buffer * WVOffsetConBuff;
 
@@ -120,9 +128,10 @@ class LetsDrawSomeStuff
 	XMFLOAT4X4 PLANEWORLD;
 	XMFLOAT4X4 ISLANDWORLD;
 	XMFLOAT4X4 PALM1WORLD;
+	XMFLOAT4X4 CFWORLD;
 
-	float xRot = 0;
-	float yRot = 0;
+	float dx = 0;
+	float dy = 0;
 	float xShift = 0;
 	float yShift = 0;
 	float zShift = 0;
@@ -130,7 +139,7 @@ class LetsDrawSomeStuff
 	float FOV = 90;
 	float aspectRatio;
 
-	float zFar = 10.0f;
+	float zFar = 100.0f;
 	float zNear = 0.1f;
 
 	ID3D11Texture2D * floorTex;
@@ -153,6 +162,7 @@ class LetsDrawSomeStuff
 	ID3D11ShaderResourceView * OceanSRV;
 
 	ID3D11RasterizerState * BFCController;
+	ID3D11BlendState * blendstate;
 
 	struct DIRLIGHT_TO_PSHADER {
 		XMFLOAT4 light;
@@ -718,6 +728,8 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			CreateDDSTextureFromFile(myDevice, L"ocean.dds", (ID3D11Resource**)&OceanTex, &OceanSRV);
 			CreateDDSTextureFromFile(myDevice, L"field.dds", (ID3D11Resource**)&IslandTex, &IslandSRV);
 			CreateDDSTextureFromFile(myDevice, L"palmtree.dds", (ID3D11Resource**)&Palm1Tex, &Palm1SRV);
+			CreateDDSTextureFromFile(myDevice, L"fire.dds", (ID3D11Resource**)&CFTex, &CFSRV);
+
 			// TODO: PART 2 STEP 3b
 			D3D11_BUFFER_DESC bDesc;
 			bDesc.Usage = D3D11_USAGE_IMMUTABLE;
@@ -947,6 +959,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			myDevice->CreateGeometryShader(Creation_GS, sizeof(Creation_GS), NULL, &gShader);
 			myDevice->CreateVertexShader(Geometry_VS, sizeof(Geometry_VS), NULL, &GEOvShader);
 			myDevice->CreateVertexShader(Waving_VS, sizeof(Waving_VS), NULL, &WAVEvSHader);
+			myDevice->CreatePixelShader(Ocean_PS, sizeof(Ocean_PS), NULL, &OceanpShader);
 			// TODO: PART 2 STEP 8a
 
 			D3D11_INPUT_ELEMENT_DESC IED[] = {
@@ -1008,6 +1021,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			LoadModel(&OceanVertBuffer, &OceanIndexBuffer, &oceanVertCount, "Ocean.obj");
 			LoadModel(&IslandVertBuffer, &IslandIndexBuffer, &IslandVertCount, "island.obj");
 			LoadModel(&Palm1VertBuffer, &Palm1IndexBuffer, &Palm1VertCount, "palm_tree_lowpoly.obj");
+			LoadModel(&CFVertBuffer, &CFIndexBuffer, &CFVertCount, "campfire.obj");
 
 			//WORLD MATRICES CREATION
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixTranslation(0, -1, 0));
@@ -1015,16 +1029,19 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0, 0));
 			XMStoreFloat4x4(&SPRLWORLD, XMMatrixTranslation(0.45f, 0.68f, 0.8f));
 			XMStoreFloat4x4(&GEOWORLD, XMMatrixTranslation(-3, 0, 3));
-			XMStoreFloat4x4(&TIEWORLD, XMMatrixScaling(0.2f, 0.2f, 0.2f) * XMMatrixRotationY(XMConvertToRadians(180)) *  XMMatrixTranslation(-1, 1, 1));
+			XMStoreFloat4x4(&TIEWORLD, XMMatrixScaling(0.2f, 0.2f, 0.2f) * XMMatrixRotationY(XMConvertToRadians(120)) *  XMMatrixTranslation(-1, 8, 30));
 			XMStoreFloat4x4(&PLANEWORLD, XMMatrixScaling(5, 5, 5));
-			XMStoreFloat4x4(&ISLANDWORLD, XMMatrixTranslation(0, -0.8f, 0));
+			XMStoreFloat4x4(&ISLANDWORLD, XMMatrixScaling(1.45f, 1.45f, 1.45f) * XMMatrixTranslation(0, -0.8f, 0));
 			XMStoreFloat4x4(&PALM1WORLD, XMMatrixScaling(0.5f ,0.5f, 0.5f) * XMMatrixTranslation(-0.5f, 0.5f, 0.5f));
+			XMStoreFloat4x4(&CFWORLD, XMMatrixScaling(0.3f, 0.3f, 0.3f) * XMMatrixTranslation(1, 1.3f, 0));
 
-			pLight.color = { 1, 0, 1, 1 };
-			pLight.lightPos = { 0, 0.4f, 0, 1 };
-			pLight.radius = 0.5f;
+			XMStoreFloat4x4(&VIEWMATRIX, XMMatrixTranslation(0, -2, -1.0f));
 
-			dirLight.light = { 0, -1, -1, 0 };
+			pLight.color = { 1, 0.3f, 0, 1 };
+			pLight.lightPos = { 1, 1.7f, 0, 1 };
+			pLight.radius = 10;
+
+			dirLight.light = { 0, -0.3f, -1, 0 };
 			dirLight.color = { 0.8f, 0.2f, 0, 1.0f };
 
 			cLight.color = { 1, 1, 0, 1 };
@@ -1050,6 +1067,23 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			rDesc.AntialiasedLineEnable = false;
 
 			myDevice->CreateRasterizerState(&rDesc, &BFCController);
+
+			D3D11_BLEND_DESC blDesc;
+			blDesc.AlphaToCoverageEnable = true;
+			blDesc.IndependentBlendEnable = false;
+			blDesc.RenderTarget[0].BlendEnable = true;
+			blDesc.RenderTarget[0].SrcBlend = D3D11_BLEND::D3D11_BLEND_SRC_ALPHA;
+			blDesc.RenderTarget[0].DestBlend = D3D11_BLEND::D3D11_BLEND_INV_SRC_ALPHA;
+			blDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP::D3D11_BLEND_OP_ADD;
+			blDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND::D3D11_BLEND_ZERO;
+			blDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND::D3D11_BLEND_ZERO;
+			blDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP::D3D11_BLEND_OP_ADD;
+			blDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+			myDevice->CreateBlendState(&blDesc, &blendstate);
+
+			float h[] = { 1, 1, 1, 1 };
+			myContext->OMSetBlendState(blendstate, h, 0xFFFFFFFF);
 
 
 			//memory cleanup
@@ -1087,6 +1121,7 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	WAVEvSHader->Release();
 	IL->Release();
 	InstancingIL->Release();
+	OceanpShader->Release();
 	
 
 	floorTex->Release();
@@ -1129,7 +1164,13 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	Palm1Tex->Release();
 	Palm1SRV->Release();
 
+	CFVertBuffer->Release();
+	CFIndexBuffer->Release();
+	CFTex->Release();
+	CFSRV->Release();
+
 	BFCController->Release();
+	blendstate->Release();
 
 	GeoBuff->Release();
 
@@ -1169,31 +1210,67 @@ void LetsDrawSomeStuff::Render()
 			double timestep = timeObject.Delta();
 
 			if (GetAsyncKeyState(VK_DOWN)) {
-				xRot += 50 * timestep;
+				dx = timestep;
 			}
 			else if (GetAsyncKeyState(VK_UP)) {
-				xRot -= 50 * timestep;
+				dx = -timestep;
+			}
+			else {
+				dx = 0;
 			}
 
 			if (GetAsyncKeyState(VK_RIGHT)) {
-				yRot += 50 * timestep;
+				dy = timestep;
 			}
 			else if (GetAsyncKeyState(VK_LEFT)) {
-				yRot -= 50 * timestep;
+				dy = -timestep;
+			}
+			else {
+				dy = 0;
 			}
 
-			if (GetAsyncKeyState(VK_SPACE))
-				yShift += 0.5f * timestep;
-			if (GetAsyncKeyState(VK_LCONTROL))
-				yShift -= 0.5f * timestep;
-			if (GetAsyncKeyState('W'))
-				zShift += 0.5f * timestep;
-			if (GetAsyncKeyState('S'))
-				zShift -= 0.5f * timestep;
-			if (GetAsyncKeyState('A'))
-				xShift -= 0.5f * timestep;
-			if (GetAsyncKeyState('D'))
-				xShift += 0.5f * timestep;
+			XMMATRIX temp = XMLoadFloat4x4(&VIEWMATRIX);
+			temp = XMMatrixInverse(nullptr, temp);
+			XMStoreFloat4x4(&VIEWMATRIX, temp);
+
+			float moveSpd = 5;
+
+			if (GetAsyncKeyState(VK_SPACE)) {
+				XMMATRIX translation = XMMatrixTranslation(0.0f, moveSpd * timestep , 0.0f);
+				XMMATRIX temp_camera = XMLoadFloat4x4(&VIEWMATRIX);
+				XMMATRIX result = XMMatrixMultiply(translation, temp_camera);
+				XMStoreFloat4x4(&VIEWMATRIX, result);
+			}
+			if (GetAsyncKeyState(VK_LCONTROL)) {
+				XMMATRIX translation = XMMatrixTranslation(0.0f, -moveSpd * timestep, 0.0f);
+				XMMATRIX temp_camera = XMLoadFloat4x4(&VIEWMATRIX);
+				XMMATRIX result = XMMatrixMultiply(translation, temp_camera);
+				XMStoreFloat4x4(&VIEWMATRIX, result);
+			}
+			if (GetAsyncKeyState('W')) {
+				XMMATRIX translation = XMMatrixTranslation(0.0f, 0.0f, moveSpd * timestep);
+				XMMATRIX temp_camera = XMLoadFloat4x4(&VIEWMATRIX);
+				XMMATRIX result = XMMatrixMultiply(translation, temp_camera);
+				XMStoreFloat4x4(&VIEWMATRIX, result);
+			}
+			if (GetAsyncKeyState('S')) {
+				XMMATRIX translation = XMMatrixTranslation(0.0f, 0.0f, -moveSpd * timestep);
+				XMMATRIX temp_camera = XMLoadFloat4x4(&VIEWMATRIX);
+				XMMATRIX result = XMMatrixMultiply(translation, temp_camera);
+				XMStoreFloat4x4(&VIEWMATRIX, result);
+			}
+			if (GetAsyncKeyState('A')) {
+				XMMATRIX translation = XMMatrixTranslation(-moveSpd * timestep, 0.0f, 0.0f);
+				XMMATRIX temp_camera = XMLoadFloat4x4(&VIEWMATRIX);
+				XMMATRIX result = XMMatrixMultiply(translation, temp_camera);
+				XMStoreFloat4x4(&VIEWMATRIX, result);
+			}
+			if (GetAsyncKeyState('D')) {
+				XMMATRIX translation = XMMatrixTranslation(moveSpd * timestep, 0.0f, 0.0f);
+				XMMATRIX temp_camera = XMLoadFloat4x4(&VIEWMATRIX);
+				XMMATRIX result = XMMatrixMultiply(translation, temp_camera);
+				XMStoreFloat4x4(&VIEWMATRIX, result);
+			}
 
 			if (GetAsyncKeyState('Q'))
 				FOV -= 10 * timestep;
@@ -1226,24 +1303,42 @@ void LetsDrawSomeStuff::Render()
 			else if (FOV > 179)
 				FOV = 179;
 
-			if (yRot >= 360)
-				yRot -= 360;
-
-			if (yRot < 0)
-				yRot += 360;
-
-			if (xRot >= 360)
-				xRot -= 360;
-
-			if (xRot < 0)
-				xRot += 360;
-
 			waveOffset.offst.x += 2 * timestep;
 
 			if (waveOffset.offst.x >= 12.56f)
 				waveOffset.offst.x -= 6.28f;
 			
-			XMMATRIX xr = XMMatrixRotationX(XMConvertToRadians(xRot));
+			if (dx != 0 || dy != 0) {
+				XMFLOAT4 pos = XMFLOAT4(VIEWMATRIX._41, VIEWMATRIX._42, VIEWMATRIX._43, VIEWMATRIX._44);
+
+				VIEWMATRIX._41 = 0;
+				VIEWMATRIX._42 = 0;
+				VIEWMATRIX._43 = 0;
+
+				XMMATRIX rotX = XMMatrixRotationX(dx);
+				XMMATRIX rotY = XMMatrixRotationY(dy);
+
+				XMMATRIX temp_camera = XMLoadFloat4x4(&VIEWMATRIX);
+				temp_camera = XMMatrixMultiply(rotX, temp_camera);
+				temp_camera = XMMatrixMultiply(temp_camera, rotY);
+
+				XMStoreFloat4x4(&VIEWMATRIX, temp_camera);
+
+				VIEWMATRIX._41 = pos.x;
+				VIEWMATRIX._42 = pos.y;
+				VIEWMATRIX._43 = pos.z;
+			}
+
+			//SET SKYBOX WORLD POS
+			XMFLOAT4X4 hold;
+			XMStoreFloat4x4(&hold, temp);
+			XMStoreFloat4x4(&SBWORLD, XMMatrixTranslation(hold._41, hold._42, hold._43));
+
+			temp = XMLoadFloat4x4(&VIEWMATRIX);
+			temp = XMMatrixInverse(nullptr, temp);
+			XMStoreFloat4x4(&VIEWMATRIX, temp);
+
+			/*XMMATRIX xr = XMMatrixRotationX(XMConvertToRadians(xRot));
 			XMMATRIX yr = XMMatrixRotationY(XMConvertToRadians(yRot));
 			XMMATRIX rot = xr * yr;
 
@@ -1254,7 +1349,8 @@ void LetsDrawSomeStuff::Render()
 			XMStoreFloat4x4(&hold, tempView);
 			XMStoreFloat4x4(&SBWORLD, XMMatrixTranslation(hold._41, hold._42, hold._43));
 			tempView = XMMatrixInverse(nullptr, tempView);
-			XMStoreFloat4x4(&VIEWMATRIX, tempView);
+			XMStoreFloat4x4(&VIEWMATRIX, tempView);*/
+
 			// Set active target for drawing, all array based D3D11 functions should use a syntax similar to below
 			
 			ID3D11RenderTargetView* const targets[] = { myRenderTargetView };
@@ -1285,7 +1381,7 @@ void LetsDrawSomeStuff::Render()
 			}*/
 
 
-			if (PLGrow) {
+			/*if (PLGrow) {
 				pLight.radius += 0.5f * timestep;
 			}
 			else {
@@ -1297,10 +1393,10 @@ void LetsDrawSomeStuff::Render()
 			}
 			else if (pLight.radius < 0.1f) {
 				PLGrow = true;
-			}
+			}*/
 
 
-			if (PLMv) {
+			/*if (PLMv) {
 				pLight.lightPos.z += 2 * timestep;
 			}
 			else {
@@ -1312,7 +1408,7 @@ void LetsDrawSomeStuff::Render()
 			}
 			else if (pLight.lightPos.z <= -1) {
 				PLMv = true;
-			}
+			}*/
 
 			if (CLMv) {
 				cLight.lightPos.x += 2 * timestep;
@@ -1345,7 +1441,7 @@ void LetsDrawSomeStuff::Render()
 			
 
 			//set texture SRVs
-			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV, TIESRV, OceanSRV, IslandSRV, Palm1SRV };
+			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV, TIESRV, OceanSRV, IslandSRV, Palm1SRV, CFSRV };
 
 			//myContext->RSSetViewports(1, &viewport);
 			D3D11_MAPPED_SUBRESOURCE mapResource;
@@ -1432,21 +1528,6 @@ void LetsDrawSomeStuff::Render()
 			
 			myContext->DrawInstanced(6, 25, 0, 0);
 
-			myContext->VSSetShader(WAVEvSHader, NULL, 0);
-			myContext->IASetInputLayout(IL);
-			toShader.worldMat = PLANEWORLD;
-
-			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
-			memcpy(mapResource.pData, &toShader, sizeof(toShader));
-			myContext->Unmap(vertBuffer2, 0);
-
-			myContext->IASetVertexBuffers(0, 1, &OceanVertBuffer, &stride, &of);
-			myContext->IASetIndexBuffer(OceanIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-			myContext->PSSetShaderResources(0, 1, &SRVs[4]);
-
-			myContext->DrawIndexed(oceanVertCount, 0, 0);
-
 			/*toShader.worldMat = TKWORLD;
 
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -1463,6 +1544,7 @@ void LetsDrawSomeStuff::Render()
 
 			//draw wolf
 			myContext->VSSetShader(WAVEvSHader, NULL, 0);
+			myContext->PSSetShader(pShader, NULL, 0);
 
 			toShader.worldMat = WOLFWORLD;
 
@@ -1506,6 +1588,19 @@ void LetsDrawSomeStuff::Render()
 			myContext->PSSetShaderResources(0, 1, &SRVs[5]);
 
 			myContext->DrawIndexed(IslandVertCount, 0, 0);
+
+			//DRAW CAMPFIRE
+			toShader.worldMat = CFWORLD;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &CFVertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(CFIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[7]);
+
+			myContext->DrawIndexed(CFVertCount, 0, 0);
 
 			//DRAW PALM1
 			toShader.worldMat = PALM1WORLD;
@@ -1558,6 +1653,24 @@ void LetsDrawSomeStuff::Render()
 			
 			myContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
 			//myContext->Draw(sprlVCount, 0);
+
+			myContext->VSSetShader(WAVEvSHader, NULL, 0);
+			myContext->PSSetShader(OceanpShader, NULL, 0);
+			myContext->IASetInputLayout(IL);
+			toShader.worldMat = PLANEWORLD;
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &OceanVertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(OceanIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[4]);
+
+			myContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			myContext->DrawIndexed(oceanVertCount, 0, 0);
 
 			// Present Backbuffer using Swapchain object
 			// Framerate is currently unlocked, we suggest "MSI Afterburner" to track your current FPS and memory usage.
