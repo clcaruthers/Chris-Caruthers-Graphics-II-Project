@@ -1171,8 +1171,8 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			dirLight.color = { 1.0f, 0.4f, 0.2f, 1.0f };
 
 			cLight.color = { 1, 1, 0, 1 };
-			cLight.lightPos = { 0, 1, 1, 1 };
-			cLight.coneDir = { 0, -1, -1, 0 };
+			cLight.lightPos = { 0, 3, 1, 1 };
+			cLight.coneDir = { 0, 1, -1, 0 };
 			cLight.coneRatio = 0.9f;
 
 			cPos.spec.x = 128;
@@ -1504,11 +1504,14 @@ void LetsDrawSomeStuff::Render()
 					cPos.spec.x *= 2;
 				}
 			}
-
 			if (GetAsyncKeyState(VK_NUMPAD4) & 0x1) {
 				if (cPos.spec.x > 2) {
 					cPos.spec.x /= 2;
 				}
+			}
+
+			if (GetAsyncKeyState(VK_NUMPAD1) & 0x1) {
+				cLight.coneDir.y *= -1;
 			}
 
 
@@ -1632,19 +1635,19 @@ void LetsDrawSomeStuff::Render()
 				PLMv = true;
 			}*/
 
-			if (CLMv) {
+			/*if (CLMv) {
 				cLight.lightPos.x += 2 * timestep;
 			}
 			else {
 				cLight.lightPos.x -= 2 * timestep;
-			}
+			}*/
 
-			if (cLight.lightPos.x >= 5) {
+			/*if (cLight.lightPos.x >= 5) {
 				CLMv = false;
 			}
 			else if (cLight.lightPos.x <= -5) {
 				CLMv = true;
-			}
+			}*/
 
 			if (CLRt) {
 				cLight.coneDir.x += 0.5f * timestep;

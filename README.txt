@@ -3,7 +3,12 @@ SPACE/LCTRL - up/down
 Q/E - zoom in/out
 NUMPAD9/6 - zFar in/out
 NUMPAD8/5 - zNear in/out
+NUMPAD7/4 - adjust water specular power
+NUMPAD1 - toggle spot light
 
-The Unique shader effect is that the wolf texture normally has red highlights which I've changed to purple highlights with the pixel shader
+-Island Theme!
+-The Render to Texture is the palm tree scene on the easel.
+-Water has specular reflections
+-The spot light is off by default because I think it looks better that way, but it can be toggled on
+-The program will take a good 30+ seconds to load because I'm using a very high poly water model. If you don't care how good it looks you can switch it to the low poly model by changing the #define at the top of LetsDrawSomeStuff to OCEAN_LP
 
-The Instancing is the floor plane. There are 25 of the same floor plane instanced in a 5x5 square with a drawInstanced call.

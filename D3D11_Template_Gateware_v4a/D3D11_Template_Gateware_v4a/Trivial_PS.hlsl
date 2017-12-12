@@ -52,5 +52,5 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	float lightratio = saturate(dot(cdir, norm));
 	float4 res3 = spotfactor * lightratio * clcol;
 
-	return saturate(saturate(res1 + res2) * texColor);
+	return saturate(saturate(res1 + res2 + res3) * texColor);
 }

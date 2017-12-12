@@ -49,7 +49,7 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 
 	float3 res1 = lerp(float4(0, 0, 0, 1), rgb, saturate(rat + spec));
 
-	/*float4 pdir = normalize(loc - WP);
+	float4 pdir = normalize(loc - WP);
 	float d = dot(pdir, norm);
 	float prat = saturate(d);
 	float atn = 1.0f - saturate(length(loc - WP) / rad);
@@ -61,7 +61,10 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	float surfaceratio = saturate(dot(-cdir, conedir));
 	float spotfactor = (surfaceratio > coneratio) ? 1 : 0;
 	float lightratio = saturate(dot(cdir, norm));
-	float4 res3 = spotfactor * lightratio * clcol;*/
+	float3 cref = normalize(reflect(-cdir, norm));
+	float cspecInt = saturate(dot(cref, camAngle));
+	float cspec = pow(cspecInt, specPow);
+	float4 res3 = spotfactor * saturate(lightratio + cspec) * clcol;
 
 	float4 newcol;
 	newcol.x = texColor.x;
@@ -69,7 +72,7 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	newcol.z = texColor.z;
 	newcol.w = 0.65f;
 
-	float3 o = saturate(saturate(res1 /* + spec */) * newcol.xyz);
+	float3 o = saturate(saturate(res1 + res2 + res3) * newcol.xyz);
 	float4 o2;
 	o2.xyz = o;
 	o2.w = newcol.w;
