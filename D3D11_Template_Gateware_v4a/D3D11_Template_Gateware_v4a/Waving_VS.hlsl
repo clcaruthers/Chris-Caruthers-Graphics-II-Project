@@ -43,7 +43,13 @@ OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
 	sendToRasterizer.colorOut = fromVertexBuffer.color;
 
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, worldMat);
-	sendToRasterizer.projectedCoordinate.y = sendToRasterizer.projectedCoordinate.y + (sin(sendToRasterizer.projectedCoordinate.z + offset) / 8.0f);
+	float s = sin(sendToRasterizer.projectedCoordinate.z + offset) / 8.0f;
+	sendToRasterizer.projectedCoordinate.y = sendToRasterizer.projectedCoordinate.y + s;
+
+	/*s -= 0.5f;*/
+	sendToRasterizer.normOut.z = clamp((sendToRasterizer.normOut.z + s), -1, 1);
+	sendToRasterizer.normOut = normalize(sendToRasterizer.normOut);
+
 	sendToRasterizer.worldPos = sendToRasterizer.projectedCoordinate;
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, viewMat);
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, projMat);

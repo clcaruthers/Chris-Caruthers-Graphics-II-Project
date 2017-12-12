@@ -47,7 +47,7 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	float specInt = saturate(dot(ref, camAngle));
 	float spec = pow(specInt, specPow);
 
-	float3 res1 = lerp(float4(0, 0, 0, 1), rgb, saturate(rat + spec));
+	float3 res1 = rgb * (rat + spec);//lerp(float4(0, 0, 0, 1), rgb, saturate(rat + spec));
 
 	float4 pdir = normalize(loc - WP);
 	float d = dot(pdir, norm);
@@ -64,7 +64,7 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	float3 cref = normalize(reflect(-cdir, norm));
 	float cspecInt = saturate(dot(cref, camAngle));
 	float cspec = pow(cspecInt, specPow);
-	float4 res3 = spotfactor * saturate(lightratio + cspec) * clcol;
+	float4 res3 = spotfactor * (lightratio + cspec) * clcol;
 
 	float4 newcol;
 	newcol.x = texColor.x;

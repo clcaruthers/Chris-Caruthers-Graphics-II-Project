@@ -48,5 +48,6 @@
     <FxCompile Include="Geometry_VS.hlsl" />
     <FxCompile Include="Waving_VS.hlsl" />
     <FxCompile Include="Ocean_PS.hlsl" />
+    <FxCompile Include="Specular_PS.hlsl" />
   </ItemGroup>
 </Project>

@@ -27,6 +27,7 @@
 #include "Geometry_VS.csh"
 #include "Waving_VS.csh"
 #include "Ocean_PS.csh"
+#include "Specular_PS.csh"
 
 using namespace DirectX;
 using namespace std;
@@ -118,6 +119,30 @@ class LetsDrawSomeStuff
 	ID3D11Texture2D * FishTex;
 	ID3D11ShaderResourceView * FishSRV;
 
+	ID3D11Buffer * KinglerVertBuffer;
+	ID3D11Buffer * KinglerIndexBuffer;
+	unsigned int KinglerVertCount;
+	ID3D11Texture2D * KinglerTex;
+	ID3D11ShaderResourceView * KinglerSRV;
+
+	ID3D11Buffer * OmastarVertBuffer;
+	ID3D11Buffer * OmastarIndexBuffer;
+	unsigned int OmastarVertCount;
+	ID3D11Texture2D * OmastarTex;
+	ID3D11ShaderResourceView * OmastarSRV;
+
+	ID3D11Buffer * ExeggVertBuffer;
+	ID3D11Buffer * ExeggIndexBuffer;
+	unsigned int ExeggVertCount;
+	ID3D11Texture2D * ExeggTex;
+	ID3D11ShaderResourceView * ExeggSRV;
+
+	ID3D11Buffer * SeadraVertBuffer;
+	ID3D11Buffer * SeadraIndexBuffer;
+	unsigned int SeadraVertCount;
+	ID3D11Texture2D * SeadraTex;
+	ID3D11ShaderResourceView * SeadraSRV;
+
 	ID3D11Buffer * FernVertBuffer;
 	ID3D11Buffer * FernIndexBuffer;
 	unsigned int FernVertCount;
@@ -141,6 +166,7 @@ class LetsDrawSomeStuff
 	ID3D11VertexShader * GEOvShader;
 	ID3D11VertexShader * WAVEvSHader;
 	ID3D11PixelShader * OceanpShader;
+	ID3D11PixelShader * SpecularpShader;
 
 	ID3D11Buffer * WVOffsetConBuff;
 
@@ -170,6 +196,10 @@ class LetsDrawSomeStuff
 	XMFLOAT4X4 PAINTSKYWORLD;
 	XMFLOAT4X4 PAINTWORLD;
 	XMFLOAT4X4 EASELWORLD;
+	XMFLOAT4X4 KINGLERWORLD;
+	XMFLOAT4X4 OMASTARWORLD;
+	XMFLOAT4X4 SEADRAWORLD;
+	XMFLOAT4X4 EXEGGWORLD;
 
 	float dx = 0;
 	float dy = 0;
@@ -258,6 +288,7 @@ class LetsDrawSomeStuff
 	bool DLMv = true;
 	bool CLMv = true;
 	bool CLRt = true;
+	bool pkmn = false;
 
 public:
 
@@ -825,6 +856,10 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			CreateDDSTextureFromFile(myDevice, L"fern_diff.dds", (ID3D11Resource**)&FernTex, &FernSRV);
 			CreateDDSTextureFromFile(myDevice, L"tropical_plant_diff.dds", (ID3D11Resource**)&Palm2Tex, &Palm2SRV);
 			CreateDDSTextureFromFile(myDevice, L"wood.dds", (ID3D11Resource**)&EaselTex, &EaselSRV);
+			CreateDDSTextureFromFile(myDevice, L"Kingler.dds", (ID3D11Resource**)&KinglerTex, &KinglerSRV);
+			CreateDDSTextureFromFile(myDevice, L"omastar.dds", (ID3D11Resource**)&OmastarTex, &OmastarSRV);
+			CreateDDSTextureFromFile(myDevice, L"seadra.dds", (ID3D11Resource**)&SeadraTex, &SeadraSRV);
+			CreateDDSTextureFromFile(myDevice, L"exeggutor.dds", (ID3D11Resource**)&ExeggTex, &ExeggSRV);
 
 			// TODO: PART 2 STEP 3b
 			D3D11_BUFFER_DESC bDesc;
@@ -1060,6 +1095,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			myDevice->CreateVertexShader(Geometry_VS, sizeof(Geometry_VS), NULL, &GEOvShader);
 			myDevice->CreateVertexShader(Waving_VS, sizeof(Waving_VS), NULL, &WAVEvSHader);
 			myDevice->CreatePixelShader(Ocean_PS, sizeof(Ocean_PS), NULL, &OceanpShader);
+			myDevice->CreatePixelShader(Specular_PS, sizeof(Specular_PS), NULL, &SpecularpShader);
 			// TODO: PART 2 STEP 8a
 
 			D3D11_INPUT_ELEMENT_DESC IED[] = {
@@ -1129,6 +1165,10 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			LoadModel(&FernVertBuffer, &FernIndexBuffer, &FernVertCount, "fern.obj");
 			LoadModel(&Palm2VertBuffer, &Palm2IndexBuffer, &Palm2VertCount, "tropical_plant.obj");
 			LoadModel(&EaselVertBuffer, &EaselIndexBuffer, &EaselVertCount, "easel.obj");
+			LoadModel(&KinglerVertBuffer, &KinglerIndexBuffer, &KinglerVertCount, "Kingler.obj");
+			LoadModel(&OmastarVertBuffer, &OmastarIndexBuffer, &OmastarVertCount, "omastar.obj");
+			LoadModel(&SeadraVertBuffer, &SeadraIndexBuffer, &SeadraVertCount, "seadra.obj");
+			LoadModel(&ExeggVertBuffer, &ExeggIndexBuffer, &ExeggVertCount, "exeggutor.obj");
 
 #ifdef OCEAN_LP
 			LoadModel(&OceanVertBuffer, &OceanIndexBuffer, &oceanVertCount, "Ocean_lowpoly.obj");
@@ -1156,6 +1196,10 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			XMStoreFloat4x4(&EASELWORLD, XMMatrixScaling(0.03f, 0.03f, 0.03f) * XMMatrixRotationY(XMConvertToRadians(20)) * XMMatrixTranslation(1.2f, 1, 3.6f));
 			XMStoreFloat4x4(&PAINTWORLD, XMMatrixScaling(14, 14, 14) * XMMatrixRotationX(XMConvertToRadians(-20)) * XMMatrixTranslation(0, 47, 4.5f) * XMLoadFloat4x4(&EASELWORLD));
 			XMStoreFloat4x4(&PAINTSKYWORLD, XMMatrixScaling(30, 30, 30));
+			XMStoreFloat4x4(&KINGLERWORLD, XMMatrixRotationX(XMConvertToRadians(-15)) * XMMatrixScaling(0.3f, 0.3f, 0.3f) * XMMatrixTranslation(0, 1, -2));
+			XMStoreFloat4x4(&OMASTARWORLD, XMMatrixRotationX(XMConvertToRadians(-18)) * XMMatrixRotationY(XMConvertToRadians(180)) * XMMatrixScaling(1.2f, 1.2f, 1.2f) * XMMatrixTranslation(-1, 0.15f, 6.3f));
+			XMStoreFloat4x4(&SEADRAWORLD, XMMatrixTranslation(-7, -0.2f, 2));
+			XMStoreFloat4x4(&EXEGGWORLD, XMMatrixRotationY(XMConvertToRadians(75)) * XMMatrixScaling(0.4f, 0.4f, 0.4f) * XMMatrixTranslation(2.5f, 1.25f, 1.5f));
 
 			XMStoreFloat4x4(&VIEWMATRIX, XMMatrixTranslation(0, -2, -1.0f));
 
@@ -1167,13 +1211,13 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			pLight.lightPos = { 1, 1.7f, 0, 1 };
 			pLight.radius = 20;
 
-			dirLight.light = { -0.35f, -0.3f, -1, 0 };
+			dirLight.light = { -0.43f, -0.3f, -1, 0 };
 			dirLight.color = { 1.0f, 0.4f, 0.2f, 1.0f };
 
 			cLight.color = { 1, 1, 0, 1 };
-			cLight.lightPos = { 0, 3, 1, 1 };
-			cLight.coneDir = { 0, 1, -1, 0 };
-			cLight.coneRatio = 0.9f;
+			cLight.lightPos = { 0, 3, 0, 1 };
+			cLight.coneDir = { 0, 1, -0.7f, 0 };
+			cLight.coneRatio = 0.93f;
 
 			cPos.spec.x = 128;
 
@@ -1302,6 +1346,7 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	IL->Release();
 	InstancingIL->Release();
 	OceanpShader->Release();
+	SpecularpShader->Release();
 	
 
 	floorTex->Release();
@@ -1364,6 +1409,26 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	FernIndexBuffer->Release();
 	FernTex->Release();
 	FernSRV->Release();
+
+	KinglerVertBuffer->Release();
+	KinglerIndexBuffer->Release();
+	KinglerTex->Release();
+	KinglerSRV->Release();
+
+	OmastarVertBuffer->Release();
+	OmastarIndexBuffer->Release();
+	OmastarTex->Release();
+	OmastarSRV->Release();
+
+	ExeggVertBuffer->Release();
+	ExeggIndexBuffer->Release();
+	ExeggTex->Release();
+	ExeggSRV->Release();
+
+	SeadraVertBuffer->Release();
+	SeadraIndexBuffer->Release();
+	SeadraTex->Release();
+	SeadraSRV->Release();
 
 	EaselVertBuffer->Release();
 	EaselIndexBuffer->Release();
@@ -1482,9 +1547,9 @@ void LetsDrawSomeStuff::Render()
 			}
 
 			if (GetAsyncKeyState('Q'))
-				FOV -= 10 * timestep;
+				FOV -= 40 * timestep;
 			if (GetAsyncKeyState('E'))
-				FOV += 10 * timestep;
+				FOV += 40 * timestep;
 
 			if (GetAsyncKeyState(VK_NUMPAD9))
 				zFar += 10 * timestep;
@@ -1500,7 +1565,7 @@ void LetsDrawSomeStuff::Render()
 				zNear -= 10 * timestep;
 
 			if (GetAsyncKeyState(VK_NUMPAD7) & 0x1) {
-				if (cPos.spec.x < 512) {
+				if (cPos.spec.x < 2048) {
 					cPos.spec.x *= 2;
 				}
 			}
@@ -1514,6 +1579,9 @@ void LetsDrawSomeStuff::Render()
 				cLight.coneDir.y *= -1;
 			}
 
+			if (GetAsyncKeyState('P') & 0x1) {
+				pkmn = !pkmn;
+			}
 
 			if (zFar < 1)
 				zFar = 1;
@@ -1531,7 +1599,7 @@ void LetsDrawSomeStuff::Render()
 
 			if (waveOffset.offst.x >= 12.56f)
 				waveOffset.offst.x -= 6.28f;
-			
+
 			if (dx != 0 || dy != 0) {
 				XMFLOAT4 pos = XMFLOAT4(VIEWMATRIX._41, VIEWMATRIX._42, VIEWMATRIX._43, VIEWMATRIX._44);
 
@@ -1606,19 +1674,19 @@ void LetsDrawSomeStuff::Render()
 			}*/
 
 
-			/*if (PLGrow) {
-				pLight.radius += 0.5f * timestep;
+			if (PLGrow) {
+				pLight.radius += 1.0f * timestep;
 			}
 			else {
-				pLight.radius -= 0.5f * timestep;
+				pLight.radius -= 1.0f * timestep;
 			}
 
-			if (pLight.radius >= 2.0f) {
+			if (pLight.radius >= 22.0f) {
 				PLGrow = false;
 			}
-			else if (pLight.radius < 0.1f) {
+			else if (pLight.radius < 18.0f) {
 				PLGrow = true;
-			}*/
+			}
 
 
 			/*if (PLMv) {
@@ -1665,8 +1733,8 @@ void LetsDrawSomeStuff::Render()
 
 			
 
-			//set texture SRVs						//0		//1			//2		//3		//4			//5		//6			//7		//8		//9		//10		//11	//12
-			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV, TIESRV, OceanSRV, IslandSRV, Palm1SRV, CFSRV, FishSRV, FernSRV, Palm2SRV, paintTex, EaselSRV };
+			//set texture SRVs						//0		//1			//2		//3		//4			//5		//6			//7		//8		//9		//10		//11	//12		//13		//14		//15	//16
+			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV, TIESRV, OceanSRV, IslandSRV, Palm1SRV, CFSRV, FishSRV, FernSRV, Palm2SRV, paintTex, EaselSRV, KinglerSRV, OmastarSRV, SeadraSRV, ExeggSRV };
 
 			//myContext->RSSetViewports(1, &viewport);
 			D3D11_MAPPED_SUBRESOURCE mapResource;
@@ -1803,22 +1871,8 @@ void LetsDrawSomeStuff::Render()
 
 			//myContext->DrawIndexed(6114, 0, 0);
 
-			//DRAW TIE
-			myContext->VSSetShader(vShader, NULL, 0);
-			toShader.worldMat = TIEWORLD;
-
-			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
-			memcpy(mapResource.pData, &toShader, sizeof(toShader));
-			myContext->Unmap(vertBuffer2, 0);
-
-			myContext->IASetVertexBuffers(0, 1, &TieVertBuffer, &stride, &of);
-			myContext->IASetIndexBuffer(TieIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-			myContext->PSSetShaderResources(0, 1, &SRVs[3]);
-
-			myContext->DrawIndexed(tieVertCount, 0, 0);
-
 			//DRAW ISLAND
+			myContext->VSSetShader(vShader, NULL, 0);
 			toShader.worldMat = ISLANDWORLD;
 
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -1941,6 +1995,102 @@ void LetsDrawSomeStuff::Render()
 
 			myContext->DrawIndexed(FernVertCount, 0, 0);
 
+			//send cam position
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(cPosConBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &cPos, sizeof(cPos));
+			myContext->Unmap(cPosConBuff, 0);
+			myContext->PSSetConstantBuffers(3, 1, &cPosConBuff);
+
+			//POKEMON TIIIIME
+			if (pkmn) {
+				float h = cPos.spec.x;
+				cPos.spec.x = 8;
+
+				ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+				myContext->Map(cPosConBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+				memcpy(mapResource.pData, &cPos, sizeof(cPos));
+				myContext->Unmap(cPosConBuff, 0);
+
+				myContext->PSSetShader(SpecularpShader, NULL, 0);
+
+				//KINGLER
+				toShader.worldMat = KINGLERWORLD;
+				ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+				myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+				memcpy(mapResource.pData, &toShader, sizeof(toShader));
+				myContext->Unmap(vertBuffer2, 0);
+
+				myContext->IASetVertexBuffers(0, 1, &KinglerVertBuffer, &stride, &of);
+				myContext->IASetIndexBuffer(KinglerIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+				myContext->PSSetShaderResources(0, 1, &SRVs[13]);
+
+				myContext->DrawIndexed(KinglerVertCount, 0, 0);
+
+				//OMASTAR
+				toShader.worldMat = OMASTARWORLD;
+				ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+				myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+				memcpy(mapResource.pData, &toShader, sizeof(toShader));
+				myContext->Unmap(vertBuffer2, 0);
+
+				myContext->IASetVertexBuffers(0, 1, &OmastarVertBuffer, &stride, &of);
+				myContext->IASetIndexBuffer(OmastarIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+				myContext->PSSetShaderResources(0, 1, &SRVs[14]);
+
+				myContext->DrawIndexed(OmastarVertCount, 0, 0);
+
+				//EXEGGUTOR
+				toShader.worldMat = EXEGGWORLD;
+				ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+				myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+				memcpy(mapResource.pData, &toShader, sizeof(toShader));
+				myContext->Unmap(vertBuffer2, 0);
+
+				myContext->IASetVertexBuffers(0, 1, &ExeggVertBuffer, &stride, &of);
+				myContext->IASetIndexBuffer(ExeggIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+				myContext->PSSetShaderResources(0, 1, &SRVs[16]);
+
+				myContext->DrawIndexed(ExeggVertCount, 0, 0);
+
+				//SEADRA
+				XMFLOAT4X4 temp;
+				XMMATRIX mth = XMLoadFloat4x4(&SEADRAWORLD);
+				XMStoreFloat4x4(&temp, XMMatrixTranslation(0, (sin(KINGLERWORLD._43 + (waveOffset.offst.x - 2.0f)) / 8.0f), 0) * mth);
+				toShader.worldMat = temp;
+				ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+				myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+				memcpy(mapResource.pData, &toShader, sizeof(toShader));
+				myContext->Unmap(vertBuffer2, 0);
+
+				myContext->IASetVertexBuffers(0, 1, &SeadraVertBuffer, &stride, &of);
+				myContext->IASetIndexBuffer(SeadraIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+				myContext->PSSetShaderResources(0, 1, &SRVs[15]);
+
+				myContext->DrawIndexed(SeadraVertCount, 0, 0);
+
+				//DRAW TIE
+				toShader.worldMat = TIEWORLD;
+
+				ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+				myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+				memcpy(mapResource.pData, &toShader, sizeof(toShader));
+				myContext->Unmap(vertBuffer2, 0);
+
+				myContext->IASetVertexBuffers(0, 1, &TieVertBuffer, &stride, &of);
+				myContext->IASetIndexBuffer(TieIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+				myContext->PSSetShaderResources(0, 1, &SRVs[3]);
+
+				myContext->DrawIndexed(tieVertCount, 0, 0);
+
+				myContext->PSSetShader(pShader, NULL, 0);
+				cPos.spec.x = h;
+
+				ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+				myContext->Map(cPosConBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+				memcpy(mapResource.pData, &cPos, sizeof(cPos));
+				myContext->Unmap(cPosConBuff, 0);
+			}
 			//GEOMETRY STUFF
 			myContext->VSSetShader(GEOvShader, NULL, 0);
 			myContext->GSSetShader(gShader, NULL, 0);
@@ -2004,15 +2154,9 @@ void LetsDrawSomeStuff::Render()
 			memcpy(mapResource.pData, &toShader, sizeof(toShader));
 			myContext->Unmap(vertBuffer2, 0);
 
-			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
-			myContext->Map(cPosConBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
-			memcpy(mapResource.pData, &cPos, sizeof(cPos));
-			myContext->Unmap(cPosConBuff, 0);
-
 			myContext->IASetVertexBuffers(0, 1, &OceanVertBuffer, &stride, &of);
 			myContext->IASetIndexBuffer(OceanIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 			myContext->PSSetShaderResources(0, 1, &SRVs[4]); //srv4
-			myContext->PSSetConstantBuffers(3, 1, &cPosConBuff);
 
 			myContext->DrawIndexed(oceanVertCount, 0, 0);
 
