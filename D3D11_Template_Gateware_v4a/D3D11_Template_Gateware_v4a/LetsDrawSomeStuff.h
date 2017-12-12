@@ -5,6 +5,9 @@
 // You can clean this up and make it much nicer, otherwise you are stuck in debug 32bit :P
 #pragma comment(lib, "Gateware Redistributable R4a/Archive/Win32/Gateware_i386/Debug/GDirectX11Surface.lib")
 
+//OCEAN: loads high poly ocean. OCEAN_LP: loads low poly ocean much faster.
+#define OCEAN
+
 // Include DirectX11 for interface access
 #include <d3d11.h>
 #include <DirectXMath.h>
@@ -56,6 +59,7 @@ class LetsDrawSomeStuff
 	ID3D11Buffer * lightConstBuff;
 	ID3D11Buffer * pLightConBuff;
 	ID3D11Buffer * cLightConBuff;
+	ID3D11Buffer * cPosConBuff;
 
 	ID3D11Buffer * floorInstanceBuff;
 
@@ -96,11 +100,38 @@ class LetsDrawSomeStuff
 	ID3D11Texture2D * Palm1Tex;
 	ID3D11ShaderResourceView * Palm1SRV;
 
+	ID3D11Buffer * Palm2VertBuffer;
+	ID3D11Buffer * Palm2IndexBuffer;
+	unsigned int Palm2VertCount;
+	ID3D11Texture2D * Palm2Tex;
+	ID3D11ShaderResourceView * Palm2SRV;
+
 	ID3D11Buffer * CFVertBuffer;
 	ID3D11Buffer * CFIndexBuffer;
 	unsigned int CFVertCount;
 	ID3D11Texture2D * CFTex;
 	ID3D11ShaderResourceView * CFSRV;
+
+	ID3D11Buffer * FishVertBuffer;
+	ID3D11Buffer * FishIndexBuffer;
+	unsigned int FishVertCount;
+	ID3D11Texture2D * FishTex;
+	ID3D11ShaderResourceView * FishSRV;
+
+	ID3D11Buffer * FernVertBuffer;
+	ID3D11Buffer * FernIndexBuffer;
+	unsigned int FernVertCount;
+	ID3D11Texture2D * FernTex;
+	ID3D11ShaderResourceView * FernSRV;
+
+	ID3D11Buffer * EaselVertBuffer;
+	ID3D11Buffer * EaselIndexBuffer;
+	unsigned int EaselVertCount;
+	ID3D11Texture2D * EaselTex;
+	ID3D11ShaderResourceView * EaselSRV;
+
+	ID3D11Buffer * PaintVertBuffer;
+	unsigned int PaintVertCount;
 
 	ID3D11VertexShader * vShader;
 	ID3D11PixelShader * pShader;
@@ -117,6 +148,9 @@ class LetsDrawSomeStuff
 
 	XMFLOAT4X4 VIEWMATRIX;
 	XMFLOAT4X4 PROJECTIONMATRIX;
+
+	XMFLOAT4X4 pVIEWMATRIX;
+	XMFLOAT4X4 pPROJECTIONMATRIX;
 	
 	XMFLOAT4X4 WORLDMATRIX;
 	/*XMFLOAT4X4 TKWORLD;*/
@@ -128,7 +162,14 @@ class LetsDrawSomeStuff
 	XMFLOAT4X4 PLANEWORLD;
 	XMFLOAT4X4 ISLANDWORLD;
 	XMFLOAT4X4 PALM1WORLD;
+	XMFLOAT4X4 PALM2WORLD;
 	XMFLOAT4X4 CFWORLD;
+	XMFLOAT4X4 FISHWORLD;
+	XMFLOAT4X4 FERNWORLD;
+	XMFLOAT4X4 PAINTTREEWORLD;
+	XMFLOAT4X4 PAINTSKYWORLD;
+	XMFLOAT4X4 PAINTWORLD;
+	XMFLOAT4X4 EASELWORLD;
 
 	float dx = 0;
 	float dy = 0;
@@ -139,7 +180,7 @@ class LetsDrawSomeStuff
 	float FOV = 90;
 	float aspectRatio;
 
-	float zFar = 100.0f;
+	float zFar = 150.0f;
 	float zNear = 0.1f;
 
 	ID3D11Texture2D * floorTex;
@@ -163,6 +204,12 @@ class LetsDrawSomeStuff
 
 	ID3D11RasterizerState * BFCController;
 	ID3D11BlendState * blendstate;
+
+	ID3D11Texture2D * paintRTVTex;
+	ID3D11ShaderResourceView * paintTex;
+	ID3D11RenderTargetView * paintRTV;
+	ID3D11DepthStencilView * paintDSV;
+	ID3D11Texture2D * dsvTex;
 
 	struct DIRLIGHT_TO_PSHADER {
 		XMFLOAT4 light;
@@ -194,12 +241,18 @@ class LetsDrawSomeStuff
 		XMFLOAT4 offst;
 	};
 
+	struct CAMPOS {
+		XMFLOAT4 pos;
+		XMFLOAT4 spec;
+	};
+
 	WAVEINFO waveOffset;
 
 	SEND_TO_VRAM toShader;
 	DIRLIGHT_TO_PSHADER dirLight;
 	POINTLIGHT_TO_PSHADER pLight;
 	CONELIGHT_TO_PSHADER cLight;
+	CAMPOS cPos;
 	bool PLGrow = true;
 	bool PLMv = true;
 	bool DLMv = true;
@@ -363,6 +416,9 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			mySurface->GetDevice((void**)&myDevice);
 			mySurface->GetSwapchain((void**)&mySwapChain);
 			mySurface->GetContext((void**)&myContext);
+
+			DXGI_SWAP_CHAIN_DESC a;
+			mySwapChain->GetDesc(&a);
 
 			UINT wWidth;
 			UINT wHeight;
@@ -650,6 +706,42 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			verts[5].RGBA.w = 1;
 #pragma endregion
 
+			PaintVertCount = 6;
+			MYVERTEX pVerts[6];
+#pragma region
+
+			pVerts[0].XYZW = { -0.5f, 1, 0, 1 };
+			pVerts[0].NORM = { 0, 0, 1, 0 };
+			pVerts[0].UV = { 0, 0, 0, 0 };
+			pVerts[0].RGBA = { 1, 1, 1, 1 };
+
+			pVerts[1].XYZW = { 0.5f, 1, 0, 1 };
+			pVerts[1].NORM = { 0, 0, 1, 0 };
+			pVerts[1].UV = { 1, 0, 0, 0 };
+			pVerts[1].RGBA = { 1, 1, 1, 1 };
+
+			pVerts[2].XYZW = { -0.5f, -1, 0, 1 };
+			pVerts[2].NORM = { 0, 0, 1, 0 };
+			pVerts[2].UV = { 0, 1, 0, 0 };
+			pVerts[2].RGBA = { 1, 1, 1, 1 };
+
+			pVerts[3].XYZW = { 0.5f, 1, 0, 1 };
+			pVerts[3].NORM = { 0, 0, 1, 0 };
+			pVerts[3].UV = { 1, 0, 0, 0 };
+			pVerts[3].RGBA = { 1, 1, 1, 1 };
+
+			pVerts[4].XYZW = { 0.5f, -1, 0, 1 };
+			pVerts[4].NORM = { 0, 0, 1, 0 };
+			pVerts[4].UV = { 1, 1, 0, 0 };
+			pVerts[4].RGBA = { 1, 1, 1, 1 };
+
+			pVerts[5].XYZW = { -0.5f, -1, 0, 1 };
+			pVerts[5].NORM = { 0, 0, 1, 0 };
+			pVerts[5].UV = { 0, 1, 0, 0 };
+			pVerts[5].RGBA = { 1, 1, 1, 1 };
+
+#pragma endregion
+
 			MYVERTEX geometry[1];
 			
 			geometry[0].XYZW.x = 0;
@@ -729,6 +821,10 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			CreateDDSTextureFromFile(myDevice, L"field.dds", (ID3D11Resource**)&IslandTex, &IslandSRV);
 			CreateDDSTextureFromFile(myDevice, L"palmtree.dds", (ID3D11Resource**)&Palm1Tex, &Palm1SRV);
 			CreateDDSTextureFromFile(myDevice, L"fire.dds", (ID3D11Resource**)&CFTex, &CFSRV);
+			CreateDDSTextureFromFile(myDevice, L"Rudd_Fish_diff.dds", (ID3D11Resource**)&FishTex, &FishSRV);
+			CreateDDSTextureFromFile(myDevice, L"fern_diff.dds", (ID3D11Resource**)&FernTex, &FernSRV);
+			CreateDDSTextureFromFile(myDevice, L"tropical_plant_diff.dds", (ID3D11Resource**)&Palm2Tex, &Palm2SRV);
+			CreateDDSTextureFromFile(myDevice, L"wood.dds", (ID3D11Resource**)&EaselTex, &EaselSRV);
 
 			// TODO: PART 2 STEP 3b
 			D3D11_BUFFER_DESC bDesc;
@@ -949,6 +1045,10 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			TKIDesc.ByteWidth = sizeof(unsigned int) * SBICount;
 			wolfInit.pSysMem = &SBIndicies;
 			myDevice->CreateBuffer(&TKIDesc, &wolfInit, &SBIBuff);
+
+			bDesc.ByteWidth = sizeof(MYVERTEX) * PaintVertCount;
+			wolfInit.pSysMem = &pVerts;
+			myDevice->CreateBuffer(&bDesc, &wolfInit, &PaintVertBuffer);
 			
 
 			// TODO: PART 2 STEP 7
@@ -1013,15 +1113,30 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			myDevice->CreateBuffer(&bDesc2, NULL, &cLightConBuff);
 
+			bDesc2.ByteWidth = sizeof(CAMPOS);
+
+			myDevice->CreateBuffer(&bDesc2, NULL, &cPosConBuff);
+
 			bDesc2.ByteWidth = sizeof(waveOffset);
 
 			myDevice->CreateBuffer(&bDesc2, NULL, &WVOffsetConBuff);
 
 			LoadModel(&TieVertBuffer, &TieIndexBuffer, &tieVertCount, "TIE.obj");
-			LoadModel(&OceanVertBuffer, &OceanIndexBuffer, &oceanVertCount, "Ocean.obj");
 			LoadModel(&IslandVertBuffer, &IslandIndexBuffer, &IslandVertCount, "island.obj");
 			LoadModel(&Palm1VertBuffer, &Palm1IndexBuffer, &Palm1VertCount, "palm_tree_lowpoly.obj");
 			LoadModel(&CFVertBuffer, &CFIndexBuffer, &CFVertCount, "campfire.obj");
+			LoadModel(&FishVertBuffer, &FishIndexBuffer, &FishVertCount, "Rudd_Fish.obj");
+			LoadModel(&FernVertBuffer, &FernIndexBuffer, &FernVertCount, "fern.obj");
+			LoadModel(&Palm2VertBuffer, &Palm2IndexBuffer, &Palm2VertCount, "tropical_plant.obj");
+			LoadModel(&EaselVertBuffer, &EaselIndexBuffer, &EaselVertCount, "easel.obj");
+
+#ifdef OCEAN_LP
+			LoadModel(&OceanVertBuffer, &OceanIndexBuffer, &oceanVertCount, "Ocean_lowpoly.obj");
+#endif
+
+#ifdef OCEAN
+			LoadModel(&OceanVertBuffer, &OceanIndexBuffer, &oceanVertCount, "Ocean.obj");
+#endif
 
 			//WORLD MATRICES CREATION
 			XMStoreFloat4x4(&WORLDMATRIX, XMMatrixTranslation(0, -1, 0));
@@ -1029,30 +1144,44 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			XMStoreFloat4x4(&WOLFWORLD, XMMatrixTranslation(0.5f, 0, 0));
 			XMStoreFloat4x4(&SPRLWORLD, XMMatrixTranslation(0.45f, 0.68f, 0.8f));
 			XMStoreFloat4x4(&GEOWORLD, XMMatrixTranslation(-3, 0, 3));
-			XMStoreFloat4x4(&TIEWORLD, XMMatrixScaling(0.2f, 0.2f, 0.2f) * XMMatrixRotationY(XMConvertToRadians(120)) *  XMMatrixTranslation(-1, 8, 30));
+			XMStoreFloat4x4(&TIEWORLD, XMMatrixScaling(0.2f, 0.2f, 0.2f) * XMMatrixRotationY(XMConvertToRadians(120)) *  XMMatrixTranslation(-1, 8, -65));
 			XMStoreFloat4x4(&PLANEWORLD, XMMatrixScaling(5, 5, 5));
 			XMStoreFloat4x4(&ISLANDWORLD, XMMatrixScaling(1.45f, 1.45f, 1.45f) * XMMatrixTranslation(0, -0.8f, 0));
 			XMStoreFloat4x4(&PALM1WORLD, XMMatrixScaling(0.5f ,0.5f, 0.5f) * XMMatrixTranslation(-0.5f, 0.5f, 0.5f));
 			XMStoreFloat4x4(&CFWORLD, XMMatrixScaling(0.3f, 0.3f, 0.3f) * XMMatrixTranslation(1, 1.3f, 0));
+			XMStoreFloat4x4(&FISHWORLD, XMMatrixScaling(0.6f, 0.6f, 0.6f) * XMMatrixTranslation(6, -0.5f, -6));
+			XMStoreFloat4x4(&FERNWORLD, XMMatrixTranslation(-0.7f, 1, 1.2f));
+			XMStoreFloat4x4(&PALM2WORLD, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(1.5f, 1, -2));
+			XMStoreFloat4x4(&PAINTTREEWORLD, XMMatrixScaling(0.7f, 1.6f, 0.7f) * XMMatrixTranslation(-7, -6, 18));
+			XMStoreFloat4x4(&EASELWORLD, XMMatrixScaling(0.03f, 0.03f, 0.03f) * XMMatrixRotationY(XMConvertToRadians(20)) * XMMatrixTranslation(1.2f, 1, 3.6f));
+			XMStoreFloat4x4(&PAINTWORLD, XMMatrixScaling(14, 14, 14) * XMMatrixRotationX(XMConvertToRadians(-20)) * XMMatrixTranslation(0, 47, 4.5f) * XMLoadFloat4x4(&EASELWORLD));
+			XMStoreFloat4x4(&PAINTSKYWORLD, XMMatrixScaling(30, 30, 30));
 
 			XMStoreFloat4x4(&VIEWMATRIX, XMMatrixTranslation(0, -2, -1.0f));
 
+			XMStoreFloat4x4(&pVIEWMATRIX, XMMatrixIdentity());
+			float paintAR = 250.0f / 500.0f;
+			XMStoreFloat4x4(&pPROJECTIONMATRIX, XMMatrixPerspectiveFovLH(XMConvertToRadians(FOV), paintAR, zNear, zFar));
+
 			pLight.color = { 1, 0.3f, 0, 1 };
 			pLight.lightPos = { 1, 1.7f, 0, 1 };
-			pLight.radius = 10;
+			pLight.radius = 20;
 
-			dirLight.light = { 0, -0.3f, -1, 0 };
-			dirLight.color = { 0.8f, 0.2f, 0, 1.0f };
+			dirLight.light = { -0.35f, -0.3f, -1, 0 };
+			dirLight.color = { 1.0f, 0.4f, 0.2f, 1.0f };
 
 			cLight.color = { 1, 1, 0, 1 };
 			cLight.lightPos = { 0, 1, 1, 1 };
 			cLight.coneDir = { 0, -1, -1, 0 };
 			cLight.coneRatio = 0.9f;
 
+			cPos.spec.x = 128;
+
 			waveOffset.offst.x = 6.28f;
 			waveOffset.offst.y = 0;
 			waveOffset.offst.z = 0;
 			waveOffset.offst.w = 0;
+
 
 			D3D11_RASTERIZER_DESC rDesc;
 			rDesc.CullMode = D3D11_CULL_NONE;
@@ -1063,8 +1192,8 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			rDesc.DepthBiasClamp = 0.0f;
 			rDesc.DepthClipEnable = true;
 			rDesc.ScissorEnable = false;
-			rDesc.MultisampleEnable = false;
-			rDesc.AntialiasedLineEnable = false;
+			rDesc.MultisampleEnable = true;
+			rDesc.AntialiasedLineEnable = true;
 
 			myDevice->CreateRasterizerState(&rDesc, &BFCController);
 
@@ -1075,16 +1204,67 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 			blDesc.RenderTarget[0].SrcBlend = D3D11_BLEND::D3D11_BLEND_SRC_ALPHA;
 			blDesc.RenderTarget[0].DestBlend = D3D11_BLEND::D3D11_BLEND_INV_SRC_ALPHA;
 			blDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP::D3D11_BLEND_OP_ADD;
-			blDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND::D3D11_BLEND_ZERO;
-			blDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND::D3D11_BLEND_ZERO;
+			blDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND::D3D11_BLEND_ONE;
+			blDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND::D3D11_BLEND_ONE;
 			blDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP::D3D11_BLEND_OP_ADD;
 			blDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+			/*blDesc.RenderTarget[1].BlendEnable = true;
+			blDesc.RenderTarget[1].SrcBlend = D3D11_BLEND::D3D11_BLEND_SRC_ALPHA;
+			blDesc.RenderTarget[1].DestBlend = D3D11_BLEND::D3D11_BLEND_INV_SRC_ALPHA;
+			blDesc.RenderTarget[1].BlendOp = D3D11_BLEND_OP::D3D11_BLEND_OP_ADD;
+			blDesc.RenderTarget[1].SrcBlendAlpha = D3D11_BLEND::D3D11_BLEND_ONE;
+			blDesc.RenderTarget[1].DestBlendAlpha = D3D11_BLEND::D3D11_BLEND_ONE;
+			blDesc.RenderTarget[1].BlendOpAlpha = D3D11_BLEND_OP::D3D11_BLEND_OP_ADD;
+			blDesc.RenderTarget[1].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;*/
 
 			myDevice->CreateBlendState(&blDesc, &blendstate);
 
 			float h[] = { 1, 1, 1, 1 };
 			myContext->OMSetBlendState(blendstate, h, 0xFFFFFFFF);
 
+			//Render to Texture Set-up
+			D3D11_TEXTURE2D_DESC t2dDesc;
+			ZeroMemory(&t2dDesc, sizeof(t2dDesc));
+			t2dDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+			t2dDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+			t2dDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+			t2dDesc.ArraySize = 1;
+			t2dDesc.CPUAccessFlags = 0;
+			t2dDesc.Height = 500;
+			t2dDesc.Width = 250;
+			t2dDesc.MipLevels = 1;
+			t2dDesc.SampleDesc.Count = 1;
+			t2dDesc.Usage = D3D11_USAGE_DEFAULT;
+			myDevice->CreateTexture2D(&t2dDesc, 0, &paintRTVTex);
+
+			t2dDesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+			t2dDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+			t2dDesc.MiscFlags = 0;
+			myDevice->CreateTexture2D(&t2dDesc, 0, &dsvTex);
+
+			t2dDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+
+			D3D11_RENDER_TARGET_VIEW_DESC rtvDesc;
+			ZeroMemory(&rtvDesc, sizeof(rtvDesc));
+			rtvDesc.Format = t2dDesc.Format;
+			rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+			rtvDesc.Texture2D.MipSlice = 0;
+			myDevice->CreateRenderTargetView(paintRTVTex, &rtvDesc, &paintRTV);
+
+			D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+			srvDesc.Format = t2dDesc.Format;
+			srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Texture2D.MostDetailedMip = 0;
+			srvDesc.Texture1D.MipLevels = 1;
+			myDevice->CreateShaderResourceView(paintRTVTex, &srvDesc, &paintTex);
+
+			D3D11_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+			dsvDesc.Format = DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+			dsvDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+			dsvDesc.Texture2D.MipSlice = 0;
+			dsvDesc.Flags = 0;
+			myDevice->CreateDepthStencilView(dsvTex, &dsvDesc, &paintDSV);
 
 			//memory cleanup
 			/*delete[] TKverts;*/
@@ -1135,6 +1315,7 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	lightConstBuff->Release();
 	pLightConBuff->Release();
 	cLightConBuff->Release();
+	cPosConBuff->Release();
 
 	wolfTex->Release();
 	wolfSRV->Release();
@@ -1164,10 +1345,30 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	Palm1Tex->Release();
 	Palm1SRV->Release();
 
+	Palm2VertBuffer->Release();
+	Palm2IndexBuffer->Release();
+	Palm2Tex->Release();
+	Palm2SRV->Release();
+
 	CFVertBuffer->Release();
 	CFIndexBuffer->Release();
 	CFTex->Release();
 	CFSRV->Release();
+
+	FishVertBuffer->Release();
+	FishIndexBuffer->Release();
+	FishTex->Release();
+	FishSRV->Release();
+
+	FernVertBuffer->Release();
+	FernIndexBuffer->Release();
+	FernTex->Release();
+	FernSRV->Release();
+
+	EaselVertBuffer->Release();
+	EaselIndexBuffer->Release();
+	EaselTex->Release();
+	EaselSRV->Release();
 
 	BFCController->Release();
 	blendstate->Release();
@@ -1175,6 +1376,14 @@ LetsDrawSomeStuff::~LetsDrawSomeStuff()
 	GeoBuff->Release();
 
 	WVOffsetConBuff->Release();
+
+	paintRTV->Release();
+	paintDSV->Release();
+	paintTex->Release();
+	paintRTVTex->Release();
+	dsvTex->Release();
+
+	PaintVertBuffer->Release();
 
 
 	if (mySurface) // Free Gateware Interface
@@ -1290,6 +1499,18 @@ void LetsDrawSomeStuff::Render()
 			if (GetAsyncKeyState(VK_NUMPAD5))
 				zNear -= 10 * timestep;
 
+			if (GetAsyncKeyState(VK_NUMPAD7) & 0x1) {
+				if (cPos.spec.x < 512) {
+					cPos.spec.x *= 2;
+				}
+			}
+
+			if (GetAsyncKeyState(VK_NUMPAD4) & 0x1) {
+				if (cPos.spec.x > 2) {
+					cPos.spec.x /= 2;
+				}
+			}
+
 
 			if (zFar < 1)
 				zFar = 1;
@@ -1300,8 +1521,8 @@ void LetsDrawSomeStuff::Render()
 
 			if (FOV < 10)
 				FOV = 10;
-			else if (FOV > 179)
-				FOV = 179;
+			else if (FOV > 150)
+				FOV = 150;
 
 			waveOffset.offst.x += 2 * timestep;
 
@@ -1333,6 +1554,7 @@ void LetsDrawSomeStuff::Render()
 			XMFLOAT4X4 hold;
 			XMStoreFloat4x4(&hold, temp);
 			XMStoreFloat4x4(&SBWORLD, XMMatrixTranslation(hold._41, hold._42, hold._43));
+			cPos.pos = { hold._41, hold._42, hold._43, hold._44 };
 
 			temp = XMLoadFloat4x4(&VIEWMATRIX);
 			temp = XMMatrixInverse(nullptr, temp);
@@ -1353,8 +1575,8 @@ void LetsDrawSomeStuff::Render()
 
 			// Set active target for drawing, all array based D3D11 functions should use a syntax similar to below
 			
-			ID3D11RenderTargetView* const targets[] = { myRenderTargetView };
-			myContext->OMSetRenderTargets(1, targets, myDepthStencilView);
+			ID3D11RenderTargetView* const targets[] = { myRenderTargetView, paintRTV };
+			myContext->OMSetRenderTargets(1, &targets[0], myDepthStencilView);
 
 			// Clear the screen to dark green
 			const float d_green[] = { 0, 0.5f, 0, 1 };
@@ -1440,8 +1662,8 @@ void LetsDrawSomeStuff::Render()
 
 			
 
-			//set texture SRVs
-			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV, TIESRV, OceanSRV, IslandSRV, Palm1SRV, CFSRV };
+			//set texture SRVs						//0		//1			//2		//3		//4			//5		//6			//7		//8		//9		//10		//11	//12
+			ID3D11ShaderResourceView * SRVs[] = { floorSRV, wolfSRV, skyBoxSRV, TIESRV, OceanSRV, IslandSRV, Palm1SRV, CFSRV, FishSRV, FernSRV, Palm2SRV, paintTex, EaselSRV };
 
 			//myContext->RSSetViewports(1, &viewport);
 			D3D11_MAPPED_SUBRESOURCE mapResource;
@@ -1467,18 +1689,36 @@ void LetsDrawSomeStuff::Render()
 
 			myContext->DrawIndexed(36, 0, 0);
 
+			//DRAW PAINT SKYBOX
+			myContext->ClearDepthStencilView(paintDSV, D3D11_CLEAR_DEPTH, 1, 0);
+			myContext->OMSetRenderTargets(1, &targets[1], paintDSV);
+			myContext->ClearRenderTargetView(paintRTV, d_green);
+			toShader.worldMat = PAINTSKYWORLD;
+			toShader.viewMat = pVIEWMATRIX;
+			toShader.projMat = pPROJECTIONMATRIX;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->DrawIndexed(36, 0, 0);
+
+			myContext->OMSetRenderTargets(1, &targets[0], myDepthStencilView);
+			//
+
 			myContext->ClearDepthStencilView(myDepthStencilView, D3D11_CLEAR_DEPTH, 1, 0); //RECLEAR depth buffer
 
 			myContext->VSSetShader(IvShader, NULL, 0);
 
 			toShader.worldMat = WORLDMATRIX;
+			toShader.viewMat = VIEWMATRIX;
+			toShader.projMat = PROJECTIONMATRIX;
 
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
 			memcpy(mapResource.pData, &toShader, sizeof(toShader));
 			myContext->Unmap(vertBuffer2, 0);
 
-			// TODO: PART 3 STEP 6
 			myContext->VSSetConstantBuffers(0, 1, &vertBuffer2);
 
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
@@ -1602,9 +1842,21 @@ void LetsDrawSomeStuff::Render()
 
 			myContext->DrawIndexed(CFVertCount, 0, 0);
 
+			//DRAW EASEL
+			toShader.worldMat = EASELWORLD;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &EaselVertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(EaselIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[12]);
+
+			myContext->DrawIndexed(EaselVertCount, 0, 0);
+
 			//DRAW PALM1
 			toShader.worldMat = PALM1WORLD;
-
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
 			memcpy(mapResource.pData, &toShader, sizeof(toShader));
@@ -1615,6 +1867,76 @@ void LetsDrawSomeStuff::Render()
 			myContext->PSSetShaderResources(0, 1, &SRVs[6]);
 
 			myContext->DrawIndexed(Palm1VertCount, 0, 0);
+
+			//DRAW TO TEXTUREEEEEEEE
+			dirLight.light.z = -dirLight.light.z;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(lightConstBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &dirLight, sizeof(dirLight));
+			myContext->Unmap(lightConstBuff, 0);
+			myContext->PSSetConstantBuffers(0, 1, &lightConstBuff);
+
+			myContext->OMSetRenderTargets(1, &targets[1], paintDSV);
+			
+			toShader.worldMat = PAINTTREEWORLD;
+			toShader.viewMat = pVIEWMATRIX;
+			toShader.projMat = pPROJECTIONMATRIX;
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->DrawIndexed(Palm1VertCount, 0, 0);
+
+			myContext->OMSetRenderTargets(1, &targets[0], myDepthStencilView);
+
+			//DRAW PALM2
+			dirLight.light.z = -dirLight.light.z;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(lightConstBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &dirLight, sizeof(dirLight));
+			myContext->Unmap(lightConstBuff, 0);
+			myContext->PSSetConstantBuffers(0, 1, &lightConstBuff);
+
+			toShader.worldMat = PALM2WORLD;
+			toShader.viewMat = VIEWMATRIX;
+			toShader.projMat = PROJECTIONMATRIX;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &Palm2VertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(Palm2IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[10]);
+
+			myContext->DrawIndexed(Palm2VertCount, 0, 0);
+
+			//DRAW PAINT
+			toShader.worldMat = PAINTWORLD;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+			myContext->IASetVertexBuffers(0, 1, &PaintVertBuffer, &stride, &of);
+			myContext->PSSetShaderResources(0, 1, &SRVs[11]);
+
+			myContext->Draw(PaintVertCount, 0);
+
+			//DRAW FERN
+			toShader.worldMat = FERNWORLD;
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &FernVertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(FernIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[9]);
+
+			myContext->DrawIndexed(FernVertCount, 0, 0);
 
 			//GEOMETRY STUFF
 			myContext->VSSetShader(GEOvShader, NULL, 0);
@@ -1655,20 +1977,39 @@ void LetsDrawSomeStuff::Render()
 			//myContext->Draw(sprlVCount, 0);
 
 			myContext->VSSetShader(WAVEvSHader, NULL, 0);
-			myContext->PSSetShader(OceanpShader, NULL, 0);
 			myContext->IASetInputLayout(IL);
-			toShader.worldMat = PLANEWORLD;
 
+			toShader.worldMat = FISHWORLD;
 			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
 			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
 			memcpy(mapResource.pData, &toShader, sizeof(toShader));
 			myContext->Unmap(vertBuffer2, 0);
 
-			myContext->IASetVertexBuffers(0, 1, &OceanVertBuffer, &stride, &of);
-			myContext->IASetIndexBuffer(OceanIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-			myContext->PSSetShaderResources(0, 1, &SRVs[4]);
+			myContext->IASetVertexBuffers(0, 1, &FishVertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(FishIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[8]); //srv 8
 
 			myContext->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			myContext->DrawIndexed(FishVertCount, 0, 0);
+
+			myContext->PSSetShader(OceanpShader, NULL, 0);
+
+			toShader.worldMat = PLANEWORLD;
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(vertBuffer2, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &toShader, sizeof(toShader));
+			myContext->Unmap(vertBuffer2, 0);
+
+			ZeroMemory(&mapResource, sizeof(D3D11_MAPPED_SUBRESOURCE));
+			myContext->Map(cPosConBuff, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapResource);
+			memcpy(mapResource.pData, &cPos, sizeof(cPos));
+			myContext->Unmap(cPosConBuff, 0);
+
+			myContext->IASetVertexBuffers(0, 1, &OceanVertBuffer, &stride, &of);
+			myContext->IASetIndexBuffer(OceanIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+			myContext->PSSetShaderResources(0, 1, &SRVs[4]); //srv4
+			myContext->PSSetConstantBuffers(3, 1, &cPosConBuff);
 
 			myContext->DrawIndexed(oceanVertCount, 0, 0);
 

@@ -22,6 +22,11 @@ cbuffer CONELIGHT : register(b2) {
 	float3 pad2;
 }
 
+cbuffer SPECULAR : register(b3) {
+	float4 camPos;
+	float4 specPow;
+}
+
 float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float4 UV : TEXCOORD, float4 norm : NORMAL, float4 WP : WORLDPOS, float4 LP : LOCALPOS) : SV_TARGET
 {
 	float4 dirNorm = normalize(dir);
@@ -36,9 +41,15 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	texColor.z = texColor.y;
 	texColor.y = temp;*/
 	float rat = saturate(saturate(dot(-dirNorm, norm)) + 0.2f);
-	float4 res1 = lerp(float4(0, 0, 0, 1), rgb, rat);
 
-	float4 pdir = normalize(loc - WP);
+	float3 camAngle = normalize(camPos - WP);
+	float3 ref = normalize(reflect(dirNorm, norm));
+	float specInt = saturate(dot(ref, camAngle));
+	float spec = pow(specInt, specPow);
+
+	float3 res1 = lerp(float4(0, 0, 0, 1), rgb, saturate(rat + spec));
+
+	/*float4 pdir = normalize(loc - WP);
 	float d = dot(pdir, norm);
 	float prat = saturate(d);
 	float atn = 1.0f - saturate(length(loc - WP) / rad);
@@ -50,7 +61,7 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	float surfaceratio = saturate(dot(-cdir, conedir));
 	float spotfactor = (surfaceratio > coneratio) ? 1 : 0;
 	float lightratio = saturate(dot(cdir, norm));
-	float4 res3 = spotfactor * lightratio * clcol;
+	float4 res3 = spotfactor * lightratio * clcol;*/
 
 	float4 newcol;
 	newcol.x = texColor.x;
@@ -58,5 +69,10 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	newcol.z = texColor.z;
 	newcol.w = 0.65f;
 
-	return saturate(saturate(res1) * newcol);
+	float3 o = saturate(saturate(res1 /* + spec */) * newcol.xyz);
+	float4 o2;
+	o2.xyz = o;
+	o2.w = newcol.w;
+
+	return o2;
 }
