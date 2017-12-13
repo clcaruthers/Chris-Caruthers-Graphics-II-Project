@@ -29,6 +29,7 @@ cbuffer SPECULAR : register(b3) {
 
 float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float4 UV : TEXCOORD, float4 norm : NORMAL, float4 WP : WORLDPOS, float4 LP : LOCALPOS) : SV_TARGET
 {
+	int shiny = 16384;
 	float4 dirNorm = normalize(dir);
 	float4 texColor = tex.Sample(SS, UV.xy);
 	if (texColor.x > (texColor.y + texColor.z) + 0.1f) {
@@ -45,7 +46,7 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	float3 camAngle = normalize(camPos - WP);
 	float3 ref = normalize(reflect(dirNorm, norm));
 	float specInt = saturate(dot(ref, camAngle));
-	float spec = pow(specInt, specPow);
+	float spec = pow(specInt, specPow) * shiny;
 
 	float3 res1 = rgb * (rat + spec);//lerp(float4(0, 0, 0, 1), rgb, saturate(rat + spec));
 
@@ -63,7 +64,7 @@ float4 main(float4 colorFromRasterizer : COLOR, float4 XYZW : SV_POSITION, float
 	float lightratio = saturate(dot(cdir, norm));
 	float3 cref = normalize(reflect(-cdir, norm));
 	float cspecInt = saturate(dot(cref, camAngle));
-	float cspec = pow(cspecInt, specPow);
+	float cspec = pow(cspecInt, specPow) * shiny;
 	float4 res3 = spotfactor * (lightratio + cspec) * clcol;
 
 	float4 newcol;

@@ -207,7 +207,7 @@ class LetsDrawSomeStuff
 	float yShift = 0;
 	float zShift = 0;
 
-	float FOV = 90;
+	float FOV = 65;
 	float aspectRatio;
 
 	float zFar = 150.0f;
@@ -1205,7 +1205,7 @@ LetsDrawSomeStuff::LetsDrawSomeStuff(GW::SYSTEM::GWindow* attatchPoint)
 
 			XMStoreFloat4x4(&pVIEWMATRIX, XMMatrixIdentity());
 			float paintAR = 250.0f / 500.0f;
-			XMStoreFloat4x4(&pPROJECTIONMATRIX, XMMatrixPerspectiveFovLH(XMConvertToRadians(FOV), paintAR, zNear, zFar));
+			XMStoreFloat4x4(&pPROJECTIONMATRIX, XMMatrixPerspectiveFovLH(XMConvertToRadians(90), paintAR, zNear, zFar));
 
 			pLight.color = { 1, 0.3f, 0, 1 };
 			pLight.lightPos = { 1, 1.7f, 0, 1 };
@@ -1590,8 +1590,8 @@ void LetsDrawSomeStuff::Render()
 			if (zNear >= zFar)
 				zNear = zFar - 0.9f;
 
-			if (FOV < 10)
-				FOV = 10;
+			if (FOV < 1)
+				FOV = 1;
 			else if (FOV > 150)
 				FOV = 150;
 
